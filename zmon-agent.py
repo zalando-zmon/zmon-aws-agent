@@ -92,6 +92,8 @@ def main():
         region = instance_data['region']
     else:
         region = args.region
+
+    print "Entity service url: ", args.entityserivce
     
     apps = get_running_apps(region)
     if len(apps) > 0:
