@@ -75,7 +75,7 @@ def get_running_elbs(region, acc):
         lb['dns_name'] = e.dns_name
         lb['host'] = e.dns_name
         lb['name'] = e.name
-        lb['url'] = '{}:443'.format(lb['host'])
+        lb['url'] = 'https://{}'.format(lb['host'])
         lbs.append(lb)
 
     return lbs
@@ -110,9 +110,20 @@ def main():
     else:
 
         if infrastructure_account is not None:
-            # removing all entities
-            r = requests.get(args.entityserivce, params={'query':'{"infrastructure_account": "'+infrastructure_account+'", "created_by":"agent"}'})
-            entities = r.json()
+            ia_entity = { "type": "local",
+                          "infrastructure_account": infrastructure_account,
+                          "region": region,
+                          "id": "aws-ac[{}]".format(infrastructure_account),
+                          "created_by": "agent" }
+
+            print "Adding LOCAL entity: {}".format(ia_entity['id'])
+
+            if os.getenv('zmon_user', None) is not None:
+                r = requests.put(args.entityserivce, auth=HTTPBasicAuth(os.getenv('zmon_user', None), os.getenv('zmon_password', None)), data=json.dumps(ia_entity), headers={'content-type':'application/json'})
+            else:
+                r = requests.put(args.entityserivce, data=json.dumps(ia_entity), headers={'content-type':'application/json'})
+
+            print "...", r.status_code
 
             current_entities = []
             for e in elbs:
@@ -120,6 +131,13 @@ def main():
 
             for a in apps:
                 current_entities.append(a["id"])
+
+            current_entities.append(ia_entity["id"])
+
+            # removing all entities
+            r = requests.get(args.entityserivce, params={'query':'{"infrastructure_account": "'+infrastructure_account+'", "created_by":"agent"}'})
+            entities = r.json()
+
 
             to_remove = []
             for e in entities:
