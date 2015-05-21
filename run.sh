@@ -2,6 +2,8 @@
 
 while :
 do
-    python -e $(cat /etc/entity_service_url) zmon-agent.py
+    echo "Executing agent..."
+    python /zmon-agent.py -e $(cat /etc/entity_service_url)
+    echo "sleeping..."
     sleep 60
 done

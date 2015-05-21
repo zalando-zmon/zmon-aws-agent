@@ -88,10 +88,12 @@ def main():
     args = argp.parse_args()
 
     if args.region == None:
-        instance_data = boto.utils.get_instance_metadata()
-        region = instance_data['region']
+        print "Trying to figure out region..."
+        region = boto.utils.get_instance_metadata()['placement']['availability-zone'][:-1]
     else:
         region = args.region
+
+    print "Using region: {}".format(region)
 
     print "Entity service url: ", args.entityserivce
     
