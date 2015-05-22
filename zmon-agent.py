@@ -1,5 +1,6 @@
 import os
 import argparse
+import boto.iam
 import boto.ec2
 import boto.ec2.elb
 import boto.cloudformation
@@ -21,7 +22,7 @@ def get_running_apps(region):
         owner = r.owner_id
 
         instances = r.instances
-        
+
         for i in instances:
             if str(i._state) != 'running(16)':
                 continue
@@ -35,8 +36,8 @@ def get_running_apps(region):
             # for now limit us to instances with valid user data ( senza/taupage )
             if isinstance(user_data, dict) and 'application_id' in user_data:
                 ins = {'type':'instance', 'created_by':'agent'}
-                
-                ins['id'] = '{}[aws:{}]'.format(i.id, owner)
+
+                ins['id'] = '{}[aws:{}:{}]'.format(i.id, owner, region)
                 ins['instance_type'] = i.instance_type
 
                 ins['application_id'] = user_data['application_id']
@@ -47,11 +48,12 @@ def get_running_apps(region):
                     for p in ins['ports'].keys():
                         ins['url']= '{}:{}'.format(i.private_dns_name, p)
                         break
-                
+
                 ins['runtime'] = user_data['runtime']
                 ins['ip'] = i.private_ip_address
                 ins['host'] = i.private_dns_name
                 ins['infrastructure_account'] = 'aws:{}'.format(owner)
+                ins['region'] = region
 
                 if i.tags:
                     if 'StackVersion' in i.tags:
@@ -64,14 +66,14 @@ def get_running_apps(region):
 
 def get_running_elbs(region, acc):
     aws = boto.ec2.elb.connect_to_region(region)
-    
+
     elbs = aws.get_all_load_balancers()
 
     lbs = []
-    
+
     for e in elbs:
-        lb = {'type':'elb', 'infrastructure_account':acc, 'created_by':'agent'}
-        lb['id'] = 'elb-{}[aws:{}]'.format(e.name, acc)
+        lb = {'type':'elb', 'infrastructure_account':acc, 'region': region, 'created_by':'agent'}
+        lb['id'] = 'elb-{}[aws:{}:{}]'.format(e.name, acc, region)
         lb['dns_name'] = e.dns_name
         lb['host'] = e.dns_name
         lb['name'] = e.name
@@ -79,6 +81,15 @@ def get_running_elbs(region, acc):
         lbs.append(lb)
 
     return lbs
+
+
+def get_account_alias(region):
+    try:
+        c = boto.iam.connect_to_region(region)
+        resp = c.get_account_alias()
+        return resp['list_account_aliases_response']['list_account_aliases_result']['account_aliases'][0]
+    except:
+        return None
 
 def main():
     argp = argparse.ArgumentParser(description='ZMon AWS Agent')
@@ -96,7 +107,7 @@ def main():
     print "Using region: {}".format(region)
 
     print "Entity service url: ", args.entityserivce
-    
+
     apps = get_running_apps(region)
     if len(apps) > 0:
         infrastructure_account = apps[0]['infrastructure_account']
@@ -110,10 +121,12 @@ def main():
     else:
 
         if infrastructure_account is not None:
+            account_alias = get_account_alias(region)
             ia_entity = { "type": "local",
                           "infrastructure_account": infrastructure_account,
+                          "account_alias": account_alias,
                           "region": region,
-                          "id": "aws-ac[{}]".format(infrastructure_account),
+                          "id": "aws-ac[{}:{}]".format(infrastructure_account, region),
                           "created_by": "agent" }
 
             print "Adding LOCAL entity: {}".format(ia_entity['id'])
@@ -151,7 +164,7 @@ def main():
                     r = requests.delete(args.entityserivce+"{}/".format(e), auth=HTTPBasicAuth(os.getenv('zmon_user', None), os.getenv('zmon_password', None)))
                 else:
                     r = requests.delete(args.entityserivce+"{}/".format(e))
-                    
+
                 print "...", r.status_code
 
         for instance in apps:
@@ -168,7 +181,7 @@ def main():
             print "Adding elastic load balancer: {}".format(elb['id'])
 
             if os.getenv('zmon_user', None) is not None:
-                r = requests.put(args.entityserivce, auth=HTTPBasicAuth(os.getenv('zmon_user', None), os.getenv('zmon_password', None)), data=json.dumps(elb), headers={'content-type':'application/json'})            
+                r = requests.put(args.entityserivce, auth=HTTPBasicAuth(os.getenv('zmon_user', None), os.getenv('zmon_password', None)), data=json.dumps(elb), headers={'content-type':'application/json'})
             else:
                 r = requests.put(args.entityserivce, data=json.dumps(elb), headers={'content-type':'application/json'})
             print "...", r.status_code
