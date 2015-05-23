@@ -78,6 +78,7 @@ def get_running_elbs(region, acc):
         lb['host'] = e.dns_name
         lb['name'] = e.name
         lb['url'] = 'https://{}'.format(lb['host'])
+        lb['region'] = region
         lbs.append(lb)
 
     return lbs
@@ -129,15 +130,6 @@ def main():
                           "id": "aws-ac[{}:{}]".format(infrastructure_account, region),
                           "created_by": "agent" }
 
-            print "Adding LOCAL entity: {}".format(ia_entity['id'])
-
-            if os.getenv('zmon_user', None) is not None:
-                r = requests.put(args.entityserivce, auth=HTTPBasicAuth(os.getenv('zmon_user', None), os.getenv('zmon_password', None)), data=json.dumps(ia_entity), headers={'content-type':'application/json'})
-            else:
-                r = requests.put(args.entityserivce, data=json.dumps(ia_entity), headers={'content-type':'application/json'})
-
-            print "...", r.status_code
-
             current_entities = []
             for e in elbs:
                 current_entities.append(e["id"])
@@ -148,9 +140,8 @@ def main():
             current_entities.append(ia_entity["id"])
 
             # removing all entities
-            r = requests.get(args.entityserivce, params={'query':'{"infrastructure_account": "'+infrastructure_account+'", "created_by":"agent"}'})
+            r = requests.get(args.entityserivce, params={'query':'{"infrastructure_account": "'+infrastructure_account+'", "region": "'+region+'", "created_by": "agent"}'})
             entities = r.json()
-
 
             to_remove = []
             for e in entities:
@@ -167,24 +158,35 @@ def main():
 
                 print "...", r.status_code
 
-        for instance in apps:
-            print "Adding instance: {}".format(instance['id'])
+
+            print "Adding LOCAL entity: {}".format(ia_entity['id'])
 
             if os.getenv('zmon_user', None) is not None:
-                r = requests.put(args.entityserivce, auth=HTTPBasicAuth(os.getenv('zmon_user', None), os.getenv('zmon_password', None)), data=json.dumps(instance), headers={'content-type':'application/json'})
+                r = requests.put(args.entityserivce, auth=HTTPBasicAuth(os.getenv('zmon_user', None), os.getenv('zmon_password', None)), data=json.dumps(ia_entity), headers={'content-type':'application/json'})
             else:
-                r = requests.put(args.entityserivce, data=json.dumps(instance), headers={'content-type':'application/json'})
+                r = requests.put(args.entityserivce, data=json.dumps(ia_entity), headers={'content-type':'application/json'})
 
             print "...", r.status_code
 
-        for elb in elbs:
-            print "Adding elastic load balancer: {}".format(elb['id'])
 
-            if os.getenv('zmon_user', None) is not None:
-                r = requests.put(args.entityserivce, auth=HTTPBasicAuth(os.getenv('zmon_user', None), os.getenv('zmon_password', None)), data=json.dumps(elb), headers={'content-type':'application/json'})
-            else:
-                r = requests.put(args.entityserivce, data=json.dumps(elb), headers={'content-type':'application/json'})
-            print "...", r.status_code
+            for instance in apps:
+                print "Adding instance: {}".format(instance['id'])
+
+                if os.getenv('zmon_user', None) is not None:
+                    r = requests.put(args.entityserivce, auth=HTTPBasicAuth(os.getenv('zmon_user', None), os.getenv('zmon_password', None)), data=json.dumps(instance), headers={'content-type':'application/json'})
+                else:
+                    r = requests.put(args.entityserivce, data=json.dumps(instance), headers={'content-type':'application/json'})
+
+                print "...", r.status_code
+
+            for elb in elbs:
+                print "Adding elastic load balancer: {}".format(elb['id'])
+
+                if os.getenv('zmon_user', None) is not None:
+                    r = requests.put(args.entityserivce, auth=HTTPBasicAuth(os.getenv('zmon_user', None), os.getenv('zmon_password', None)), data=json.dumps(elb), headers={'content-type':'application/json'})
+                else:
+                    r = requests.put(args.entityserivce, data=json.dumps(elb), headers={'content-type':'application/json'})
+                print "...", r.status_code
 
 if __name__ == '__main__':
     main()
