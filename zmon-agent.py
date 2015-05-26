@@ -92,7 +92,7 @@ def get_account_alias(region):
     except:
         return None
 
-def get_apps_from_entities(instances, region, account):
+def get_apps_from_entities(instances, account, region):
     apps = set()
     for i in instances:
         if 'application_id' in i:
@@ -100,7 +100,7 @@ def get_apps_from_entities(instances, region, account):
 
     applications = []
     for a in apps:
-        applications.append({"id":"a-{}[{}:{}]".format(a,account,region), "region":region,"infrastructure_account":account,"type":"application","created_by":"agent"})
+        applications.append({"id":"a-{}[{}:{}]".format(a, account, region), "application_id":a, "region":region, "infrastructure_account":account, "type":"application", "created_by":"agent"})
 
     return applications
 
