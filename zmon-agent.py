@@ -92,6 +92,18 @@ def get_account_alias(region):
     except:
         return None
 
+def get_apps_from_entities(instances, region, account):
+    apps = set()
+    for i in instances:
+        if 'application_id' in i:
+            apps.add(i['application_id'])
+
+    applications = []
+    for a in apps:
+        applications.append({"id":"a-{}[{}:{}]".format(a,account,region), "region":region,"infrastructure_account":account,"type":"application","created_by":"agent"})
+
+    return applications
+
 def main():
     argp = argparse.ArgumentParser(description='ZMon AWS Agent')
     argp.add_argument('-e', '--entity-service', dest='entityserivce')
@@ -130,11 +142,16 @@ def main():
                           "id": "aws-ac[{}:{}]".format(infrastructure_account, region),
                           "created_by": "agent" }
 
+            application_entities = get_apps_from_entities(apps, infrastructure_account, region)
+
             current_entities = []
             for e in elbs:
                 current_entities.append(e["id"])
 
             for a in apps:
+                current_entities.append(a["id"])
+
+            for a in application_entities:
                 current_entities.append(a["id"])
 
             current_entities.append(ia_entity["id"])
@@ -186,6 +203,15 @@ def main():
                     r = requests.put(args.entityserivce, auth=HTTPBasicAuth(os.getenv('zmon_user', None), os.getenv('zmon_password', None)), data=json.dumps(elb), headers={'content-type':'application/json'})
                 else:
                     r = requests.put(args.entityserivce, data=json.dumps(elb), headers={'content-type':'application/json'})
+                print "...", r.status_code
+
+            for app in application_entities:
+                print "Adding application: {}".format(app['id'])
+
+                if os.getenv('zmon_user', None) is not None:
+                    r = requests.put(args.entityserivce, auth=HTTPBasicAuth(os.getenv('zmon_user', None), os.getenv('zmon_password', None)), data=json.dumps(app), headers={'content-type':'application/json'})
+                else:
+                    r = requests.put(args.entityserivce, data=json.dumps(app), headers={'content-type':'application/json'})
                 print "...", r.status_code
 
 if __name__ == '__main__':
