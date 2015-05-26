@@ -73,7 +73,7 @@ def get_running_elbs(region, acc):
 
     for e in elbs:
         lb = {'type':'elb', 'infrastructure_account':acc, 'region': region, 'created_by':'agent'}
-        lb['id'] = 'elb-{}[aws:{}:{}]'.format(e.name, acc, region)
+        lb['id'] = 'elb-{}[{}:{}]'.format(e.name, acc, region)
         lb['dns_name'] = e.dns_name
         lb['host'] = e.dns_name
         lb['name'] = e.name
