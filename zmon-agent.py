@@ -146,6 +146,7 @@ def main():
             application_entities = get_apps_from_entities(apps, infrastructure_account, region)
 
             current_entities = []
+
             for e in elbs:
                 current_entities.append(e["id"])
 
@@ -161,11 +162,11 @@ def main():
             r = requests.get(args.entityserivce, params={'query':'{"infrastructure_account": "'+infrastructure_account+'", "region": "'+region+'", "created_by": "agent"}'})
             entities = r.json()
 
-            existing_entities = set()
+            existing_entities = {}
 
             to_remove = []
             for e in entities:
-                existing_entities.add(e['id'])
+                existing_entities[e['id']] = e
                 if not e["id"] in current_entities:
                     to_remove.append(e["id"])
 
@@ -209,9 +210,16 @@ def main():
                     r = requests.put(args.entityserivce, data=json.dumps(elb), headers={'content-type':'application/json'})
                 print "...", r.status_code
 
+            # merge here or we loose it on next pull
+            for app in application_entities:
+                if app['id'] in existing_entities:
+                    ex = existing_entities[app['id']]
+                    if 'scalyr_ts_id' in ex:
+                        app['scalyr_ts_id'] = ex['scalyr_ts_id']
+
             if args.write_token is not None:
                 for app in application_entities:
-                    if not app['id'] in existing_entities:
+                    if not app['id'] in existing_entities or 'scalyr_ts_id' not in app:
                         print "...", "creating time series for app", app['id']
                         # new application, create time series query on the fly for default errors
                         val = {
