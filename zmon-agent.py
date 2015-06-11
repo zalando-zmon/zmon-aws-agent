@@ -5,6 +5,7 @@ import boto.ec2
 import boto.ec2.elb
 import boto.cloudformation
 import boto.utils
+import boto.rds2
 import json
 import base64
 import yaml
@@ -104,6 +105,34 @@ def get_apps_from_entities(instances, account, region):
 
     return applications
 
+def get_rds_instances(region, acc):
+    rds_instances = []
+
+    try:
+        aws = boto.rds2.connect_to_region(region)
+        instances = aws.describe_db_instances()
+        for i in instances["DescribeDBInstancesResponse"]["DescribeDBInstancesResult"]["DBInstances"]:
+            db = {"id":"rds-{}[{}]".format(i["DBInstanceIdentifier"],acc), "created_by":"agent","infrastructure_account":"{}".format(acc)}
+            
+            db["type"] = "database"
+            db["engine"] = i["Engine"]
+            db["port"] = i["Endpoint"]["Port"]
+            db["host"] = i["Endpoint"]["Address"]
+            db["name"] = i["DBInstanceIdentifier"]
+            db["region"] = region
+
+            if "EngineVersion" in i:
+                db["version"] = i["EngineVersion"]
+
+            db["shards"]={db["name"]: "{}:{}/{}".format(db["host"],db["port"],db["name"])}
+
+            rds_instances.append(db)
+
+    except Exception as ex:
+        print ex
+
+    return rds_instances
+
 def main():
     argp = argparse.ArgumentParser(description='ZMon AWS Agent')
     argp.add_argument('-e', '--entity-service', dest='entityserivce')
@@ -126,8 +155,10 @@ def main():
     if len(apps) > 0:
         infrastructure_account = apps[0]['infrastructure_account']
         elbs = get_running_elbs(region, infrastructure_account)
+        rds = get_rds_instances(region, infrastructure_account)
     else:
         elbs = []
+        rds = []
 
     if args.json:
         d = {'apps':apps, 'elbs':elbs}
@@ -154,6 +185,9 @@ def main():
                 current_entities.append(a["id"])
 
             for a in application_entities:
+                current_entities.append(a["id"])
+
+            for a in rds:
                 current_entities.append(a["id"])
 
             current_entities.append(ia_entity["id"])
@@ -203,6 +237,15 @@ def main():
 
             for elb in elbs:
                 print "Adding elastic load balancer: {}".format(elb['id'])
+
+                if os.getenv('zmon_user', None) is not None:
+                    r = requests.put(args.entityserivce, auth=HTTPBasicAuth(os.getenv('zmon_user', None), os.getenv('zmon_password', None)), data=json.dumps(elb), headers={'content-type':'application/json'})
+                else:
+                    r = requests.put(args.entityserivce, data=json.dumps(elb), headers={'content-type':'application/json'})
+                print "...", r.status_code
+
+            for elb in rds:
+                print "Adding rds instances: {}".format(elb['id'])
 
                 if os.getenv('zmon_user', None) is not None:
                     r = requests.put(args.entityserivce, auth=HTTPBasicAuth(os.getenv('zmon_user', None), os.getenv('zmon_password', None)), data=json.dumps(elb), headers={'content-type':'application/json'})
