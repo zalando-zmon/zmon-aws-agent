@@ -10,8 +10,37 @@ import json
 import base64
 import yaml
 import requests
+import hashlib
 from requests.auth import HTTPBasicAuth
 from pprint import pprint
+
+import string
+BASE_LIST = string.digits + string.letters
+BASE_DICT = dict((c, i) for i, c in enumerate(BASE_LIST))
+
+def base_decode(string, reverse_base=BASE_DICT):
+    length = len(reverse_base)
+    ret = 0
+    for i, c in enumerate(string[::-1]):
+        ret += (length ** i) * reverse_base[c]
+
+    return ret
+
+def base_encode(integer, base=BASE_LIST):
+    length = len(base)
+    ret = ''
+    while integer != 0:
+        ret = base[integer % length] + ret
+        integer /= length
+
+    return ret
+
+def get_hash(ip):
+    m = hashlib.sha256()
+    m.update(ip)
+    h = m.hexdigest()
+    h = base_encode(int(h[10:18], 16))
+    return h
 
 def get_running_apps(region):
     aws = boto.ec2.connect_to_region(region)
@@ -38,7 +67,7 @@ def get_running_apps(region):
             if isinstance(user_data, dict) and 'application_id' in user_data:
                 ins = {'type':'instance', 'created_by':'agent'}
 
-                ins['id'] = '{}[aws:{}:{}]'.format(i.id, owner, region)
+                ins['id'] = '{}-{}-{}[aws:{}:{}]'.format(user_data['application_id'], user_data['application_version'], get_hash(i.private_ip_address+""), owner, region)
                 ins['instance_type'] = i.instance_type
 
                 ins['application_id'] = user_data['application_id']
