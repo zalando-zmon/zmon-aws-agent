@@ -69,6 +69,7 @@ def get_running_apps(region):
 
                 ins['id'] = '{}-{}-{}[aws:{}:{}]'.format(user_data['application_id'], user_data['application_version'], get_hash(i.private_ip_address+""), owner, region)
                 ins['instance_type'] = i.instance_type
+                ins['aws_id']=i.id
 
                 ins['application_id'] = user_data['application_id']
                 ins['application_version'] = user_data['application_version']
