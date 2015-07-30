@@ -76,9 +76,6 @@ def get_running_apps(region):
                 ins['source'] = user_data['source']
                 if 'ports' in user_data:
                     ins['ports'] = user_data['ports']
-                    for p in ins['ports'].keys():
-                        ins['url']= '{}:{}'.format(i.private_dns_name, p)
-                        break
 
                 ins['runtime'] = user_data['runtime']
                 ins['ip'] = i.private_ip_address
