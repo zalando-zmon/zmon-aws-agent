@@ -139,6 +139,7 @@ def get_rds_instances(region, acc):
         aws = boto.rds2.connect_to_region(region)
         instances = aws.describe_db_instances()
         for i in instances["DescribeDBInstancesResponse"]["DescribeDBInstancesResult"]["DBInstances"]:
+            
             db = {"id":"rds-{}[{}]".format(i["DBInstanceIdentifier"],acc), "created_by":"agent","infrastructure_account":"{}".format(acc)}
             
             db["type"] = "database"
@@ -151,7 +152,7 @@ def get_rds_instances(region, acc):
             if "EngineVersion" in i:
                 db["version"] = i["EngineVersion"]
 
-            db["shards"]={db["name"]: "{}:{}/{}".format(db["host"], db["port"], i["DBname"])}
+            db["shards"]={i["DBName"]: "{}:{}/{}".format(db["host"], db["port"], i["DBName"])}
 
             rds_instances.append(db)
 
