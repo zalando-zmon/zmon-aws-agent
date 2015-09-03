@@ -152,7 +152,11 @@ def get_rds_instances(region, acc):
             if "EngineVersion" in i:
                 db["version"] = i["EngineVersion"]
 
-            db["shards"]={i["DBName"]: "{}:{}/{}".format(db["host"], db["port"], i["DBName"])}
+            cluster_name = db["name"]
+            if "DBName" in i and i["DBName"] != None and i["DBName"] != "":
+                cluster_name = i["DBName"]
+
+            db["shards"]={cluster_name: "{}:{}/{}".format(db["host"], db["port"], cluster_name)}
 
             rds_instances.append(db)
 
