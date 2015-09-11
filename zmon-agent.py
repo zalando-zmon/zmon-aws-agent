@@ -105,7 +105,7 @@ def get_running_elbs(region, acc):
         lb['dns_name'] = e.dns_name
         lb['host'] = e.dns_name
         lb['name'] = e.name
-        lb['stack'] = e.name[e.rfind('-')+1:]
+        lb['stack_name'] = e.name.rsplit('-', 1)[-1]
         lb['url'] = 'https://{}'.format(lb['host'])
         lb['region'] = region
         lbs.append(lb)
