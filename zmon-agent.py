@@ -297,7 +297,7 @@ def main():
                     if 'scalyr_ts_id' in ex:
                         app['scalyr_ts_id'] = ex['scalyr_ts_id']
 
-            if args.write_token is not None:
+            if False and args.write_token is not None:
                 for app in application_entities:
                     if not app['id'] in existing_entities or 'scalyr_ts_id' not in app:
                         print "...", "creating time series for app", app['id']
