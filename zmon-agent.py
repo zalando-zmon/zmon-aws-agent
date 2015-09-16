@@ -105,6 +105,7 @@ def get_running_elbs(region, acc):
         lb['dns_name'] = e.dns_name
         lb['host'] = e.dns_name
         lb['name'] = e.name
+        lb['scheme'] = e.scheme
 
         stack = e.name.rsplit('-', 1)
         lb['stack_name'] = stack[0]
