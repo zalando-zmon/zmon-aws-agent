@@ -3,6 +3,7 @@ import argparse
 import boto.iam
 import boto.ec2
 import boto.ec2.elb
+import boto.ec2.instance
 import boto.cloudformation
 import boto.utils
 import boto.rds2
@@ -171,6 +172,27 @@ def get_rds_instances(region, acc):
 
     return rds_instances
 
+def get_cassandra_instances(region):
+    cassandra_instances = []
+
+    try:
+        aws = boto.ec2.connect_to_region(region)
+        instances = aws.get_only_instances()
+
+        for i in instances:
+                if("Name" in i.tags and 'cassandra' in i.tags['Name'] and 'opscenter' not in i.tags['Name']):
+                    cassandraInstance = {'type' : 'cassandra', 'region': region, 'created_by':'agent'}
+                    cassandraInstance["host"] = i.private_ip_address.encode("utf-8")
+                    cassandraInstance["stackName"] = i.tags['StackName'].encode("utf-8")
+                    cassandraInstance["stackVersion"] = i.tags['StackVersion'].encode("utf-8")
+                    cassandraInstance["instanceType"] = i.instance_type.encode("utf-8")
+                    cassandra_instances.append(cassandraInstance)
+    except Exception as ex:
+        print ex
+
+    return cassandra_instances;
+
+
 def main():
     argp = argparse.ArgumentParser(description='ZMon AWS Agent')
     argp.add_argument('-e', '--entity-service', dest='entityserivce')
@@ -194,10 +216,11 @@ def main():
         infrastructure_account = apps[0]['infrastructure_account']
         elbs = get_running_elbs(region, infrastructure_account)
         rds = get_rds_instances(region, infrastructure_account)
+        cassandra = get_cassandra_instances(region)
     else:
         elbs = []
         rds = []
-
+        cassandra = []
     if args.json:
         d = {'apps':apps, 'elbs':elbs}
         print json.dumps(d)
@@ -227,6 +250,9 @@ def main():
 
             for a in rds:
                 current_entities.append(a["id"])
+
+            for c in cassandra:
+                current_entities.append(c["id"])
 
             current_entities.append(ia_entity["id"])
 
@@ -262,7 +288,6 @@ def main():
 
             print "...", r.status_code
 
-
             for instance in apps:
                 print "Adding instance: {}".format(instance['id'])
 
@@ -290,6 +315,15 @@ def main():
                 else:
                     r = requests.put(args.entityserivce, data=json.dumps(elb), headers={'content-type':'application/json'})
                 print "...", r.status_code
+
+            for cas in cassandra:
+                print "Adding cassandra instances: {}".format(cas['id'])
+                if os.getenv('zmon_user', None) is not None:
+                    r = requests.put(args.entityserivce, auth=HTTPBasicAuth(os.getenv('zmon_user', None), os.getenv('zmon_password', None)), data=json.dumps(cas), headers={'content-type':'application/json'})
+                else:
+                    r = requests.put(args.entityserivce, data=json.dumps(cas), headers={'content-type':'application/json'})
+                print "...", r.status_code
+
 
             # merge here or we loose it on next pull
             for app in application_entities:
