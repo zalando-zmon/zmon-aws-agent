@@ -43,6 +43,34 @@ def get_hash(ip):
     h = base_encode(int(h[10:18], 16))
     return h
 
+def get_cassandra_instances(region):
+
+    cassandra_instances = []
+    try:
+        aws = boto.ec2.connect_to_region(region)
+        instances = aws.get_only_instances()
+
+        for i in instances:
+                try:
+                    user_data = base64.b64decode(str(i.get_attribute('userData')["userData"]))
+                    user_data = yaml.load(user_data)
+                except Exception as ex:
+                    pass
+                if("Name" in i.tags and 'cassandra' in i.tags['Name'] and 'opscenter' not in i.tags['Name']):
+                    cassandraInstance = {'type' : 'cassandra', 'region': region, 'created_by':'agent'}
+                    cassandraInstance["host"] = i.private_ip_address
+                    cassandraInstance["stackName"] = i.tags['StackName']
+                    cassandraInstance["stackVersion"] = i.tags['StackVersion']
+                    cassandraInstance["instanceType"] = i.instance_type
+                    if 'ports' in user_data:
+                        cassandraInstance['ports'] = user_data['ports']
+                    cassandra_instances.append(cassandraInstance)
+    except Exception as ex:
+        print ex
+
+    return cassandra_instances
+
+
 def get_running_apps(region):
     aws = boto.ec2.connect_to_region(region)
     rs = aws.get_all_reservations()
@@ -172,25 +200,6 @@ def get_rds_instances(region, acc):
 
     return rds_instances
 
-def get_cassandra_instances(region):
-    cassandra_instances = []
-
-    try:
-        aws = boto.ec2.connect_to_region(region)
-        instances = aws.get_only_instances()
-
-        for i in instances:
-                if("Name" in i.tags and 'cassandra' in i.tags['Name'] and 'opscenter' not in i.tags['Name']):
-                    cassandraInstance = {'type' : 'cassandra', 'region': region, 'created_by':'agent'}
-                    cassandraInstance["host"] = i.private_ip_address.encode("utf-8")
-                    cassandraInstance["stackName"] = i.tags['StackName'].encode("utf-8")
-                    cassandraInstance["stackVersion"] = i.tags['StackVersion'].encode("utf-8")
-                    cassandraInstance["instanceType"] = i.instance_type.encode("utf-8")
-                    cassandra_instances.append(cassandraInstance)
-    except Exception as ex:
-        print ex
-
-    return cassandra_instances;
 
 
 def main():
