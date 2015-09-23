@@ -43,34 +43,6 @@ def get_hash(ip):
     h = base_encode(int(h[10:18], 16))
     return h
 
-def get_cassandra_instances(region):
-
-    cassandra_instances = []
-    try:
-        aws = boto.ec2.connect_to_region(region)
-        instances = aws.get_only_instances()
-
-        for i in instances:
-                try:
-                    user_data = base64.b64decode(str(i.get_attribute('userData')["userData"]))
-                    user_data = yaml.load(user_data)
-                except Exception as ex:
-                    pass
-                if("Name" in i.tags and 'cassandra' in i.tags['Name'] and 'opscenter' not in i.tags['Name']):
-                    cassandraInstance = {'type' : 'cassandra', 'region': region, 'created_by':'agent'}
-                    cassandraInstance["host"] = i.private_ip_address
-                    cassandraInstance["stackName"] = i.tags['StackName']
-                    cassandraInstance["stackVersion"] = i.tags['StackVersion']
-                    cassandraInstance["instanceType"] = i.instance_type
-                    if 'ports' in user_data:
-                        cassandraInstance['ports'] = user_data['ports']
-                    cassandra_instances.append(cassandraInstance)
-    except Exception as ex:
-        print ex
-
-    return cassandra_instances
-
-
 def get_running_apps(region):
     aws = boto.ec2.connect_to_region(region)
     rs = aws.get_all_reservations()
@@ -94,7 +66,10 @@ def get_running_apps(region):
 
             # for now limit us to instances with valid user data ( senza/taupage )
             if isinstance(user_data, dict) and 'application_id' in user_data:
-                ins = {'type':'instance', 'created_by':'agent'}
+                if("Name" in i.tags and 'cassandra' in i.tags['Name'] and 'opscenter' not in i.tags['Name']):
+                    ins = {'type' : 'cassandra', 'region': region, 'created_by':'agent'}
+                else:
+                    ins = {'type':'instance', 'created_by':'agent'}
 
                 ins['id'] = '{}-{}-{}[aws:{}:{}]'.format(user_data['application_id'], user_data['application_version'], get_hash(i.private_ip_address+""), owner, region)
                 ins['instance_type'] = i.instance_type
@@ -116,6 +91,7 @@ def get_running_apps(region):
                     if 'StackVersion' in i.tags:
                         ins['stack'] = i.tags['Name']
                         ins['resource_id'] = i.tags['aws:cloudformation:logical-id']
+
 
                 result.append(ins)
 
@@ -225,11 +201,10 @@ def main():
         infrastructure_account = apps[0]['infrastructure_account']
         elbs = get_running_elbs(region, infrastructure_account)
         rds = get_rds_instances(region, infrastructure_account)
-        cassandra = get_cassandra_instances(region)
     else:
         elbs = []
         rds = []
-        cassandra = []
+
     if args.json:
         d = {'apps':apps, 'elbs':elbs}
         print json.dumps(d)
@@ -259,9 +234,6 @@ def main():
 
             for a in rds:
                 current_entities.append(a["id"])
-
-            for c in cassandra:
-                current_entities.append(c["id"])
 
             current_entities.append(ia_entity["id"])
 
@@ -323,14 +295,6 @@ def main():
                     r = requests.put(args.entityserivce, auth=HTTPBasicAuth(os.getenv('zmon_user', None), os.getenv('zmon_password', None)), data=json.dumps(elb), headers={'content-type':'application/json'})
                 else:
                     r = requests.put(args.entityserivce, data=json.dumps(elb), headers={'content-type':'application/json'})
-                print "...", r.status_code
-
-            for cas in cassandra:
-                print "Adding cassandra instances: {}".format(cas['id'])
-                if os.getenv('zmon_user', None) is not None:
-                    r = requests.put(args.entityserivce, auth=HTTPBasicAuth(os.getenv('zmon_user', None), os.getenv('zmon_password', None)), data=json.dumps(cas), headers={'content-type':'application/json'})
-                else:
-                    r = requests.put(args.entityserivce, data=json.dumps(cas), headers={'content-type':'application/json'})
                 print "...", r.status_code
 
 
