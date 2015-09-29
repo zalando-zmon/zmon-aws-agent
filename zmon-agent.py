@@ -90,6 +90,7 @@ def get_running_apps(region):
                     if("Name" in i.tags and 'cassandra' in i.tags['Name'] and 'opscenter' not in i.tags['Name']):
                         cas = ins.copy()
                         cas['type'] = 'cassandra'
+                        cas['id'] = "cas-{}".format(cas['id'])
                         result.append(cas)
                 result.append(ins)
     return result
