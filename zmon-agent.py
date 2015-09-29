@@ -66,11 +66,7 @@ def get_running_apps(region):
 
             # for now limit us to instances with valid user data ( senza/taupage )
             if isinstance(user_data, dict) and 'application_id' in user_data:
-                if("Name" in i.tags and 'cassandra' in i.tags['Name'] and 'opscenter' not in i.tags['Name']):
-                    ins = {'type' : 'cassandra', 'region': region, 'created_by':'agent'}
-                else:
-                    ins = {'type':'instance', 'created_by':'agent'}
-
+                ins = {'type':'instance', 'created_by':'agent'}
                 ins['id'] = '{}-{}-{}[aws:{}:{}]'.format(user_data['application_id'], user_data['application_version'], get_hash(i.private_ip_address+""), owner, region)
                 ins['instance_type'] = i.instance_type
                 ins['aws_id']=i.id
@@ -91,10 +87,11 @@ def get_running_apps(region):
                     if 'StackVersion' in i.tags:
                         ins['stack'] = i.tags['Name']
                         ins['resource_id'] = i.tags['aws:cloudformation:logical-id']
-
-
+                    if("Name" in i.tags and 'cassandra' in i.tags['Name'] and 'opscenter' not in i.tags['Name']):
+                        cas = ins.copy()
+                        cas['type'] = 'cassandra'
+                        result.append(cas)
                 result.append(ins)
-
     return result
 
 def get_running_elbs(region, acc):
