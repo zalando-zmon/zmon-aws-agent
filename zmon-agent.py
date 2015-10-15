@@ -69,6 +69,7 @@ def get_running_apps(region):
             if isinstance(user_data, dict) and 'application_id' in user_data:
                 ins = {'type':'instance', 'created_by':'agent'}
                 ins['state_reason'] = i.state_reason
+                ins['events'] = i.eventsSet
                 ins['id'] = '{}-{}-{}[aws:{}:{}]'.format(user_data['application_id'], user_data['application_version'], get_hash(i.private_ip_address+""), owner, region)
                 ins['instance_type'] = i.instance_type
                 ins['aws_id']=i.id
