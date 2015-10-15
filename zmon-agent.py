@@ -204,7 +204,6 @@ def main():
     argp = argparse.ArgumentParser(description='ZMon AWS Agent')
     argp.add_argument('-e', '--entity-service', dest='entityserivce')
     argp.add_argument('-r', '--region', dest='region', default=None)
-    argp.add_argument('-w', '--write-token', dest='write_token', default=None)
     argp.add_argument('-j', '--json', dest='json', action='store_true')
     args = argp.parse_args()
 
@@ -326,25 +325,6 @@ def main():
                     ex = existing_entities[app['id']]
                     if 'scalyr_ts_id' in ex:
                         app['scalyr_ts_id'] = ex['scalyr_ts_id']
-
-            if False and args.write_token is not None:
-                for app in application_entities:
-                    if not app['id'] in existing_entities or 'scalyr_ts_id' not in app:
-                        print "...", "creating time series for app", app['id']
-                        # new application, create time series query on the fly for default errors
-                        val = {
-                            "token": args.write_token,
-                            "queryType": "numeric",
-                            "filter": "$application_id='"+app['application_id']+"' ('ERROR')",
-                            "function": "rate"
-                        }
-
-                        r = requests.post('https://www.scalyr.com/api/createTimeseries', data=json.dumps(val), headers={'Content-Type':'application/json'})
-                        j = r.json()
-                        if j["status"] == 'success':
-                            app['scalyr_ts_id'] = j["timeseriesId"]
-                    else:
-                        print "...", "skipping", app['id']
 
 
             for app in application_entities:
