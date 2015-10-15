@@ -74,6 +74,7 @@ def get_running_apps(region):
                 ins['application_id'] = user_data['application_id']
                 ins['application_version'] = user_data['application_version']
                 ins['source'] = user_data['source']
+
                 if 'ports' in user_data:
                     ins['ports'] = user_data['ports']
 
@@ -87,12 +88,32 @@ def get_running_apps(region):
                     if 'StackVersion' in i.tags:
                         ins['stack'] = i.tags['Name']
                         ins['resource_id'] = i.tags['aws:cloudformation:logical-id']
-                    if("Name" in i.tags and 'cassandra' in i.tags['Name'] and 'opscenter' not in i.tags['Name']):
+
+                    if "Name" in i.tags and 'cassandra' in i.tags['Name'] and 'opscenter' not in i.tags['Name']:
                         cas = ins.copy()
                         cas['type'] = 'cassandra'
                         cas['id'] = "cas-{}".format(cas['id'])
                         result.append(cas)
+
                 result.append(ins)
+
+            else:
+
+                ins = {'type':'instance', 'created_by':'agent'}
+                ins['id'] = '{}-{}[aws:{}:{}]'.format(i.id, get_hash(i.private_ip_address+""), owner, region)
+                ins['infrastructure_account'] = 'aws:{}'.format(owner)
+                ins['ip'] = i.private_ip_address
+                ins['host'] = i.private_dns_name
+                ins['region'] = region
+                ins['instance_type'] = i.instance_type
+                ins['aws_id']=i.id
+
+                if i.tags:
+                    if 'Name' in i.tags:
+                        ins['name'] = i.tags['Name'].replace(" ","-")
+
+                result.append(ins)
+
     return result
 
 def get_running_elbs(region, acc):
