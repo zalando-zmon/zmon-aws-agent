@@ -3,6 +3,7 @@ import argparse
 import boto.iam
 import boto.ec2
 import boto.ec2.elb
+import boto.ec2.instance
 import boto.cloudformation
 import boto.utils
 import boto.rds2
@@ -66,7 +67,6 @@ def get_running_apps(region):
             # for now limit us to instances with valid user data ( senza/taupage )
             if isinstance(user_data, dict) and 'application_id' in user_data:
                 ins = {'type':'instance', 'created_by':'agent'}
-
                 ins['id'] = '{}-{}-{}[aws:{}:{}]'.format(user_data['application_id'], user_data['application_version'], get_hash(i.private_ip_address+""), owner, region)
                 ins['instance_type'] = i.instance_type
                 ins['aws_id']=i.id
@@ -87,9 +87,12 @@ def get_running_apps(region):
                     if 'StackVersion' in i.tags:
                         ins['stack'] = i.tags['Name']
                         ins['resource_id'] = i.tags['aws:cloudformation:logical-id']
-
+                    if("Name" in i.tags and 'cassandra' in i.tags['Name'] and 'opscenter' not in i.tags['Name']):
+                        cas = ins.copy()
+                        cas['type'] = 'cassandra'
+                        cas['id'] = "cas-{}".format(cas['id'])
+                        result.append(cas)
                 result.append(ins)
-
     return result
 
 def get_running_elbs(region, acc):
@@ -170,6 +173,8 @@ def get_rds_instances(region, acc):
         print ex
 
     return rds_instances
+
+
 
 def main():
     argp = argparse.ArgumentParser(description='ZMon AWS Agent')
@@ -262,7 +267,6 @@ def main():
 
             print "...", r.status_code
 
-
             for instance in apps:
                 print "Adding instance: {}".format(instance['id'])
 
@@ -290,6 +294,7 @@ def main():
                 else:
                     r = requests.put(args.entityserivce, data=json.dumps(elb), headers={'content-type':'application/json'})
                 print "...", r.status_code
+
 
             # merge here or we loose it on next pull
             for app in application_entities:
