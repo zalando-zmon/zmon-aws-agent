@@ -13,9 +13,6 @@ ADD supervisord.conf /etc/supervisord.conf
 RUN touch /etc/entity_service_url
 RUN chmod uog+w /etc/entity_service_url
 
-RUN touch /etc/scalyr_write_key
-RUN chmod uog+w /etc/scalyr_write_key
-
 ADD scm-source.json /scm-source.json
 
 ADD zmon-agent.py /zmon-agent.py
