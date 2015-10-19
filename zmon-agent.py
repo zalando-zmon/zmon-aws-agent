@@ -140,7 +140,16 @@ def get_running_elbs(region, acc):
 
         lb['url'] = 'https://{}'.format(lb['host'])
         lb['region'] = region
+        lb['members'] = len(e.instances)
         lbs.append(lb)
+
+        ihealth = aws.describe_instance_health(load_balancer_name=e.name)
+        in_service = 0
+        for ih in ihealth:
+            if ih.state == 'InService':
+                in_service += 1
+
+        lb['active_members'] = in_service
 
     return lbs
 
