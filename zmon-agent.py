@@ -211,7 +211,7 @@ def get_rds_instances(region, acc):
 
 def main():
     argp = argparse.ArgumentParser(description='ZMon AWS Agent')
-    argp.add_argument('-e', '--entity-service', dest='entityserivce')
+    argp.add_argument('-e', '--entity-service', dest='entityservice')
     argp.add_argument('-r', '--region', dest='region', default=None)
     argp.add_argument('-j', '--json', dest='json', action='store_true')
     args = argp.parse_args()
@@ -224,7 +224,7 @@ def main():
 
     print "Using region: {}".format(region)
 
-    print "Entity service url: ", args.entityserivce
+    print "Entity service url: ", args.entityservice
 
     apps = get_running_apps(region)
     if len(apps) > 0:
@@ -268,7 +268,7 @@ def main():
             current_entities.append(ia_entity["id"])
 
             # removing all entities
-            r = requests.get(args.entityserivce, params={'query':'{"infrastructure_account": "'+infrastructure_account+'", "region": "'+region+'", "created_by": "agent"}'})
+            r = requests.get(args.entityservice, params={'query':'{"infrastructure_account": "'+infrastructure_account+'", "region": "'+region+'", "created_by": "agent"}'})
             entities = r.json()
 
             existing_entities = {}
@@ -283,9 +283,9 @@ def main():
                 print "removing instance: {}".format(e)
 
                 if os.getenv('zmon_user', None) is not None:
-                    r = requests.delete(args.entityserivce+"{}/".format(e), auth=HTTPBasicAuth(os.getenv('zmon_user', None), os.getenv('zmon_password', None)))
+                    r = requests.delete(args.entityservice+"{}/".format(e), auth=HTTPBasicAuth(os.getenv('zmon_user', None), os.getenv('zmon_password', None)))
                 else:
-                    r = requests.delete(args.entityserivce+"{}/".format(e))
+                    r = requests.delete(args.entityservice+"{}/".format(e))
 
                 print "...", r.status_code
 
@@ -293,9 +293,9 @@ def main():
             print "Adding LOCAL entity: {}".format(ia_entity['id'])
 
             if os.getenv('zmon_user', None) is not None:
-                r = requests.put(args.entityserivce, auth=HTTPBasicAuth(os.getenv('zmon_user', None), os.getenv('zmon_password', None)), data=json.dumps(ia_entity), headers={'content-type':'application/json'})
+                r = requests.put(args.entityservice, auth=HTTPBasicAuth(os.getenv('zmon_user', None), os.getenv('zmon_password', None)), data=json.dumps(ia_entity), headers={'content-type':'application/json'})
             else:
-                r = requests.put(args.entityserivce, data=json.dumps(ia_entity), headers={'content-type':'application/json'})
+                r = requests.put(args.entityservice, data=json.dumps(ia_entity), headers={'content-type':'application/json'})
 
             print "...", r.status_code
 
@@ -303,9 +303,9 @@ def main():
                 print "Adding instance: {}".format(instance['id'])
 
                 if os.getenv('zmon_user', None) is not None:
-                    r = requests.put(args.entityserivce, auth=HTTPBasicAuth(os.getenv('zmon_user', None), os.getenv('zmon_password', None)), data=json.dumps(instance), headers={'content-type':'application/json'})
+                    r = requests.put(args.entityservice, auth=HTTPBasicAuth(os.getenv('zmon_user', None), os.getenv('zmon_password', None)), data=json.dumps(instance), headers={'content-type':'application/json'})
                 else:
-                    r = requests.put(args.entityserivce, data=json.dumps(instance), headers={'content-type':'application/json'})
+                    r = requests.put(args.entityservice, data=json.dumps(instance), headers={'content-type':'application/json'})
 
                 print "...", r.status_code
 
@@ -313,18 +313,18 @@ def main():
                 print "Adding elastic load balancer: {}".format(elb['id'])
 
                 if os.getenv('zmon_user', None) is not None:
-                    r = requests.put(args.entityserivce, auth=HTTPBasicAuth(os.getenv('zmon_user', None), os.getenv('zmon_password', None)), data=json.dumps(elb), headers={'content-type':'application/json'})
+                    r = requests.put(args.entityservice, auth=HTTPBasicAuth(os.getenv('zmon_user', None), os.getenv('zmon_password', None)), data=json.dumps(elb), headers={'content-type':'application/json'})
                 else:
-                    r = requests.put(args.entityserivce, data=json.dumps(elb), headers={'content-type':'application/json'})
+                    r = requests.put(args.entityservice, data=json.dumps(elb), headers={'content-type':'application/json'})
                 print "...", r.status_code
 
             for elb in rds:
                 print "Adding rds instances: {}".format(elb['id'])
 
                 if os.getenv('zmon_user', None) is not None:
-                    r = requests.put(args.entityserivce, auth=HTTPBasicAuth(os.getenv('zmon_user', None), os.getenv('zmon_password', None)), data=json.dumps(elb), headers={'content-type':'application/json'})
+                    r = requests.put(args.entityservice, auth=HTTPBasicAuth(os.getenv('zmon_user', None), os.getenv('zmon_password', None)), data=json.dumps(elb), headers={'content-type':'application/json'})
                 else:
-                    r = requests.put(args.entityserivce, data=json.dumps(elb), headers={'content-type':'application/json'})
+                    r = requests.put(args.entityservice, data=json.dumps(elb), headers={'content-type':'application/json'})
                 print "...", r.status_code
 
 
@@ -340,9 +340,9 @@ def main():
                 print "Adding application: {}".format(app['id'])
 
                 if os.getenv('zmon_user', None) is not None:
-                    r = requests.put(args.entityserivce, auth=HTTPBasicAuth(os.getenv('zmon_user', None), os.getenv('zmon_password', None)), data=json.dumps(app), headers={'content-type':'application/json'})
+                    r = requests.put(args.entityservice, auth=HTTPBasicAuth(os.getenv('zmon_user', None), os.getenv('zmon_password', None)), data=json.dumps(app), headers={'content-type':'application/json'})
                 else:
-                    r = requests.put(args.entityserivce, data=json.dumps(app), headers={'content-type':'application/json'})
+                    r = requests.put(args.entityservice, data=json.dumps(app), headers={'content-type':'application/json'})
                 print "...", r.status_code
 
 if __name__ == '__main__':
