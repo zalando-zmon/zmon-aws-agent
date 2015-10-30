@@ -12,7 +12,6 @@ import base64
 import yaml
 import requests
 import hashlib
-from requests.auth import HTTPBasicAuth
 from pprint import pprint
 
 import string
@@ -279,9 +278,8 @@ def main():
                 if not e["id"] in current_entities:
                     to_remove.append(e["id"])
 
-            if os.getenv('zmon_user', None) is not None:
-                auth = HTTPBasicAuth(os.getenv('zmon_user', None),
-                                     os.getenv('zmon_password', None))
+            if os.getenv('zmon_user'):
+                auth = (os.getenv('zmon_user'), os.getenv('zmon_password', ''))
             else:
                 auth = None
 
