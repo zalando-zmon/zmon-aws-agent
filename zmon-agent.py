@@ -12,7 +12,6 @@ import base64
 import yaml
 import requests
 import hashlib
-from requests.auth import HTTPBasicAuth
 from pprint import pprint
 
 import string
@@ -279,54 +278,37 @@ def main():
                 if not e["id"] in current_entities:
                     to_remove.append(e["id"])
 
+            if os.getenv('zmon_user'):
+                auth = (os.getenv('zmon_user'), os.getenv('zmon_password', ''))
+            else:
+                auth = None
+
             for e in to_remove:
                 print "removing instance: {}".format(e)
 
-                if os.getenv('zmon_user', None) is not None:
-                    r = requests.delete(args.entityservice+"{}/".format(e), auth=HTTPBasicAuth(os.getenv('zmon_user', None), os.getenv('zmon_password', None)))
-                else:
-                    r = requests.delete(args.entityservice+"{}/".format(e))
+                r = requests.delete(args.entityservice+"{}/".format(e), auth=auth)
 
                 print "...", r.status_code
 
+            def put_entity(entity_type, entity):
+                print "Adding {} entity: {}".format(entity_type, entity['id'])
 
-            print "Adding LOCAL entity: {}".format(ia_entity['id'])
+                r = requests.put(args.entityservice, auth=auth,
+                                 data=json.dumps(entity),
+                                 headers={'content-type':'application/json'})
 
-            if os.getenv('zmon_user', None) is not None:
-                r = requests.put(args.entityservice, auth=HTTPBasicAuth(os.getenv('zmon_user', None), os.getenv('zmon_password', None)), data=json.dumps(ia_entity), headers={'content-type':'application/json'})
-            else:
-                r = requests.put(args.entityservice, data=json.dumps(ia_entity), headers={'content-type':'application/json'})
+                print "...", r.status_code
 
-            print "...", r.status_code
+            put_entity('LOCAL', ia_entity)
 
             for instance in apps:
-                print "Adding instance: {}".format(instance['id'])
-
-                if os.getenv('zmon_user', None) is not None:
-                    r = requests.put(args.entityservice, auth=HTTPBasicAuth(os.getenv('zmon_user', None), os.getenv('zmon_password', None)), data=json.dumps(instance), headers={'content-type':'application/json'})
-                else:
-                    r = requests.put(args.entityservice, data=json.dumps(instance), headers={'content-type':'application/json'})
-
-                print "...", r.status_code
+                put_entity('instance', instance)
 
             for elb in elbs:
-                print "Adding elastic load balancer: {}".format(elb['id'])
+                put_entity('elastic load balancer', elb)
 
-                if os.getenv('zmon_user', None) is not None:
-                    r = requests.put(args.entityservice, auth=HTTPBasicAuth(os.getenv('zmon_user', None), os.getenv('zmon_password', None)), data=json.dumps(elb), headers={'content-type':'application/json'})
-                else:
-                    r = requests.put(args.entityservice, data=json.dumps(elb), headers={'content-type':'application/json'})
-                print "...", r.status_code
-
-            for elb in rds:
-                print "Adding rds instances: {}".format(elb['id'])
-
-                if os.getenv('zmon_user', None) is not None:
-                    r = requests.put(args.entityservice, auth=HTTPBasicAuth(os.getenv('zmon_user', None), os.getenv('zmon_password', None)), data=json.dumps(elb), headers={'content-type':'application/json'})
-                else:
-                    r = requests.put(args.entityservice, data=json.dumps(elb), headers={'content-type':'application/json'})
-                print "...", r.status_code
-
+            for db in rds:
+                put_entity('RDS instance', db)
 
             # merge here or we loose it on next pull
             for app in application_entities:
@@ -335,15 +317,8 @@ def main():
                     if 'scalyr_ts_id' in ex:
                         app['scalyr_ts_id'] = ex['scalyr_ts_id']
 
-
             for app in application_entities:
-                print "Adding application: {}".format(app['id'])
-
-                if os.getenv('zmon_user', None) is not None:
-                    r = requests.put(args.entityservice, auth=HTTPBasicAuth(os.getenv('zmon_user', None), os.getenv('zmon_password', None)), data=json.dumps(app), headers={'content-type':'application/json'})
-                else:
-                    r = requests.put(args.entityservice, data=json.dumps(app), headers={'content-type':'application/json'})
-                print "...", r.status_code
+                put_entity('application', app)
 
 if __name__ == '__main__':
     main()
