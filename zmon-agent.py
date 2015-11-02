@@ -18,6 +18,7 @@ import string
 BASE_LIST = string.digits + string.letters
 BASE_DICT = dict((c, i) for i, c in enumerate(BASE_LIST))
 
+
 def base_decode(string, reverse_base=BASE_DICT):
     length = len(reverse_base)
     ret = 0
@@ -25,6 +26,7 @@ def base_decode(string, reverse_base=BASE_DICT):
         ret += (length ** i) * reverse_base[c]
 
     return ret
+
 
 def base_encode(integer, base=BASE_LIST):
     length = len(base)
@@ -35,12 +37,14 @@ def base_encode(integer, base=BASE_LIST):
 
     return ret
 
+
 def get_hash(ip):
     m = hashlib.sha256()
     m.update(ip)
     h = m.hexdigest()
     h = base_encode(int(h[10:18], 16))
     return h
+
 
 def get_running_apps(region):
     aws = boto.ec2.connect_to_region(region)
@@ -101,7 +105,7 @@ def get_running_apps(region):
 
             else:
 
-                ins = {'type':'instance', 'created_by':'agent'}
+                ins = {'type': 'instance', 'created_by': 'agent'}
                 ins['id'] = '{}-{}[aws:{}:{}]'.format(i.id, get_hash(i.private_ip_address+""), owner, region)
                 ins['infrastructure_account'] = 'aws:{}'.format(owner)
                 ins['ip'] = i.private_ip_address
@@ -112,11 +116,12 @@ def get_running_apps(region):
 
                 if i.tags:
                     if 'Name' in i.tags:
-                        ins['name'] = i.tags['Name'].replace(" ","-")
+                        ins['name'] = i.tags['Name'].replace(" ", "-")
 
                 result.append(ins)
 
     return result
+
 
 def get_running_elbs(region, acc):
     aws = boto.ec2.elb.connect_to_region(region)
@@ -161,6 +166,7 @@ def get_account_alias(region):
     except:
         return None
 
+
 def get_apps_from_entities(instances, account, region):
     apps = set()
     for i in instances:
@@ -173,6 +179,7 @@ def get_apps_from_entities(instances, account, region):
 
     return applications
 
+
 def get_rds_instances(region, acc):
     rds_instances = []
 
@@ -180,9 +187,9 @@ def get_rds_instances(region, acc):
         aws = boto.rds2.connect_to_region(region)
         instances = aws.describe_db_instances()
         for i in instances["DescribeDBInstancesResponse"]["DescribeDBInstancesResult"]["DBInstances"]:
-            
+
             db = {"id":"rds-{}[{}]".format(i["DBInstanceIdentifier"],acc), "created_by":"agent","infrastructure_account":"{}".format(acc)}
-            
+
             db["type"] = "database"
             db["engine"] = i["Engine"]
             db["port"] = i["Endpoint"]["Port"]
@@ -205,7 +212,6 @@ def get_rds_instances(region, acc):
         print ex
 
     return rds_instances
-
 
 
 def main():
