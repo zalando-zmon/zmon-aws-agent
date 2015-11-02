@@ -1,3 +1,5 @@
+from __future__ import print_function
+
 import os
 import argparse
 import boto.iam
@@ -7,12 +9,12 @@ import boto.ec2.instance
 import boto.cloudformation
 import boto.utils
 import boto.rds2
+import logging
 import json
 import base64
 import yaml
 import requests
 import hashlib
-from pprint import pprint
 
 import string
 BASE_LIST = string.digits + string.letters
@@ -65,7 +67,7 @@ def get_running_apps(region):
             try:
                 user_data = base64.b64decode(str(i.get_attribute('userData')["userData"]))
                 user_data = yaml.load(user_data)
-            except Exception as ex:
+            except:
                 pass
 
             # for now limit us to instances with valid user data ( senza/taupage )
@@ -73,7 +75,11 @@ def get_running_apps(region):
                 ins = {'type': 'instance', 'created_by': 'agent'}
                 ins['state_reason'] = i.state_reason
                 ins['events'] = i.eventsSet
-                ins['id'] = '{}-{}-{}[aws:{}:{}]'.format(user_data['application_id'], user_data['application_version'], get_hash(i.private_ip_address+""), owner, region)
+                ins['id'] = '{}-{}-{}[aws:{}:{}]'.format(user_data['application_id'],
+                                                         user_data['application_version'],
+                                                         get_hash(i.private_ip_address + ""),
+                                                         owner,
+                                                         region)
                 ins['instance_type'] = i.instance_type
                 ins['aws_id'] = i.id
 
@@ -210,8 +216,8 @@ def get_rds_instances(region, acc):
 
             rds_instances.append(db)
 
-    except Exception as ex:
-        print ex
+    except Exception:
+        logging.exception('Failed to get RDS instance')
 
     return rds_instances
 
@@ -223,15 +229,17 @@ def main():
     argp.add_argument('-j', '--json', dest='json', action='store_true')
     args = argp.parse_args()
 
+    logging.basicConfig(level=logging.INFO)
+
     if not args.region:
-        print "Trying to figure out region..."
+        logging.info("Trying to figure out region...")
         region = boto.utils.get_instance_metadata()['placement']['availability-zone'][:-1]
     else:
         region = args.region
 
-    print "Using region: {}".format(region)
+    logging.info("Using region: {}".format(region))
 
-    print "Entity service url: ", args.entityservice
+    logging.info("Entity service url: %s", args.entityservice)
 
     apps = get_running_apps(region)
     if len(apps) > 0:
@@ -244,7 +252,7 @@ def main():
 
     if args.json:
         d = {'apps': apps, 'elbs': elbs}
-        print json.dumps(d)
+        print(json.dumps(d))
     else:
 
         if infrastructure_account is not None:
@@ -275,8 +283,9 @@ def main():
             current_entities.append(ia_entity["id"])
 
             # removing all entities
+            query = {'infrastructure_account': infrastructure_account, 'region': region, 'created_by': 'agent'}
             r = requests.get(args.entityservice,
-                             params={'query': '{"infrastructure_account": "' + infrastructure_account + '", "region": "' + region + '", "created_by": "agent"}'})
+                             params={'query': json.dumps(query)})
             entities = r.json()
 
             existing_entities = {}
@@ -293,20 +302,20 @@ def main():
                 auth = None
 
             for e in to_remove:
-                print "removing instance: {}".format(e)
+                logging.info("removing instance: {}".format(e))
 
                 r = requests.delete(args.entityservice+"{}/".format(e), auth=auth)
 
-                print "...", r.status_code
+                logging.info("...%s", r.status_code)
 
             def put_entity(entity_type, entity):
-                print "Adding {} entity: {}".format(entity_type, entity['id'])
+                logging.info("Adding {} entity: {}".format(entity_type, entity['id']))
 
                 r = requests.put(args.entityservice, auth=auth,
                                  data=json.dumps(entity),
                                  headers={'content-type': 'application/json'})
 
-                print "...", r.status_code
+                logging.info("...%s", r.status_code)
 
             put_entity('LOCAL', ia_entity)
 
