@@ -66,16 +66,16 @@ def get_running_apps(region):
                 user_data = base64.b64decode(str(i.get_attribute('userData')["userData"]))
                 user_data = yaml.load(user_data)
             except Exception as ex:
-               pass
+                pass
 
             # for now limit us to instances with valid user data ( senza/taupage )
             if isinstance(user_data, dict) and 'application_id' in user_data:
-                ins = {'type':'instance', 'created_by':'agent'}
+                ins = {'type': 'instance', 'created_by': 'agent'}
                 ins['state_reason'] = i.state_reason
                 ins['events'] = i.eventsSet
                 ins['id'] = '{}-{}-{}[aws:{}:{}]'.format(user_data['application_id'], user_data['application_version'], get_hash(i.private_ip_address+""), owner, region)
                 ins['instance_type'] = i.instance_type
-                ins['aws_id']=i.id
+                ins['aws_id'] = i.id
 
                 ins['application_id'] = user_data['application_id']
                 ins['application_version'] = user_data['application_version']
@@ -112,7 +112,7 @@ def get_running_apps(region):
                 ins['host'] = i.private_dns_name
                 ins['region'] = region
                 ins['instance_type'] = i.instance_type
-                ins['aws_id']=i.id
+                ins['aws_id'] = i.id
 
                 if i.tags:
                     if 'Name' in i.tags:
@@ -131,7 +131,7 @@ def get_running_elbs(region, acc):
     lbs = []
 
     for e in elbs:
-        lb = {'type':'elb', 'infrastructure_account':acc, 'region': region, 'created_by':'agent'}
+        lb = {'type': 'elb', 'infrastructure_account': acc, 'region': region, 'created_by': 'agent'}
         lb['id'] = 'elb-{}[{}:{}]'.format(e.name, acc, region)
         lb['dns_name'] = e.dns_name
         lb['host'] = e.dns_name
@@ -175,7 +175,8 @@ def get_apps_from_entities(instances, account, region):
 
     applications = []
     for a in apps:
-        applications.append({"id":"a-{}[{}:{}]".format(a, account, region), "application_id":a, "region":region, "infrastructure_account":account, "type":"application", "created_by":"agent"})
+        applications.append({"id": "a-{}[{}:{}]".format(a, account, region), "application_id": a, "region": region,
+                             "infrastructure_account": account, "type": "application", "created_by": "agent"})
 
     return applications
 
@@ -188,7 +189,8 @@ def get_rds_instances(region, acc):
         instances = aws.describe_db_instances()
         for i in instances["DescribeDBInstancesResponse"]["DescribeDBInstancesResult"]["DBInstances"]:
 
-            db = {"id":"rds-{}[{}]".format(i["DBInstanceIdentifier"],acc), "created_by":"agent","infrastructure_account":"{}".format(acc)}
+            db = {"id": "rds-{}[{}]".format(i["DBInstanceIdentifier"], acc), "created_by": "agent",
+                  "infrastructure_account": "{}".format(acc)}
 
             db["type"] = "database"
             db["engine"] = i["Engine"]
@@ -201,10 +203,10 @@ def get_rds_instances(region, acc):
                 db["version"] = i["EngineVersion"]
 
             cluster_name = db["name"]
-            if "DBName" in i and i["DBName"] != None and i["DBName"] != "":
+            if i.get("DBName"):
                 cluster_name = i["DBName"]
 
-            db["shards"]={cluster_name: "{}:{}/{}".format(db["host"], db["port"], cluster_name)}
+            db["shards"] = {cluster_name: "{}:{}/{}".format(db["host"], db["port"], cluster_name)}
 
             rds_instances.append(db)
 
@@ -221,7 +223,7 @@ def main():
     argp.add_argument('-j', '--json', dest='json', action='store_true')
     args = argp.parse_args()
 
-    if args.region == None:
+    if not args.region:
         print "Trying to figure out region..."
         region = boto.utils.get_instance_metadata()['placement']['availability-zone'][:-1]
     else:
@@ -241,18 +243,18 @@ def main():
         rds = []
 
     if args.json:
-        d = {'apps':apps, 'elbs':elbs}
+        d = {'apps': apps, 'elbs': elbs}
         print json.dumps(d)
     else:
 
         if infrastructure_account is not None:
             account_alias = get_account_alias(region)
-            ia_entity = { "type": "local",
-                          "infrastructure_account": infrastructure_account,
-                          "account_alias": account_alias,
-                          "region": region,
-                          "id": "aws-ac[{}:{}]".format(infrastructure_account, region),
-                          "created_by": "agent" }
+            ia_entity = {"type": "local",
+                         "infrastructure_account": infrastructure_account,
+                         "account_alias": account_alias,
+                         "region": region,
+                         "id": "aws-ac[{}:{}]".format(infrastructure_account, region),
+                         "created_by": "agent"}
 
             application_entities = get_apps_from_entities(apps, infrastructure_account, region)
 
@@ -273,7 +275,8 @@ def main():
             current_entities.append(ia_entity["id"])
 
             # removing all entities
-            r = requests.get(args.entityservice, params={'query':'{"infrastructure_account": "'+infrastructure_account+'", "region": "'+region+'", "created_by": "agent"}'})
+            r = requests.get(args.entityservice,
+                             params={'query': '{"infrastructure_account": "' + infrastructure_account + '", "region": "' + region + '", "created_by": "agent"}'})
             entities = r.json()
 
             existing_entities = {}
@@ -301,7 +304,7 @@ def main():
 
                 r = requests.put(args.entityservice, auth=auth,
                                  data=json.dumps(entity),
-                                 headers={'content-type':'application/json'})
+                                 headers={'content-type': 'application/json'})
 
                 print "...", r.status_code
 
