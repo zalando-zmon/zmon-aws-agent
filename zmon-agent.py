@@ -2,6 +2,7 @@ import os
 import argparse
 import boto.iam
 import boto.ec2
+import boto.ec2.autoscale
 import boto.ec2.elb
 import boto.ec2.instance
 import boto.cloudformation
@@ -153,6 +154,33 @@ def get_running_elbs(region, acc):
     return lbs
 
 
+def get_auto_scaling_groups(region, acc):
+    groups = []
+
+    ec2 = boto.ec2.connect_to_region(region)
+    autoscale = boto.ec2.autoscale.connect_to_region(region)
+    for g in autoscale.get_all_groups():
+        sg = {'type':'asg', 'infrastructure_account':acc, 'region': region, 'created_by':'agent'}
+        sg['id'] = 'asg-{}[{}:{}]'.format(g.name, acc, region)
+        sg['name'] = g.name
+        sg['availability_zones'] = g.availability_zones
+        sg['desired_capacity'] = g.desired_capacity
+        sg['max_size'] = g.max_size
+        sg['min_size'] = g.min_size
+
+        stack_name_tag = [t for t in g.tags if t.key=='StackName']
+        if stack_name_tag:
+            sg['stack_name_tag'] = stack_name_tag[0].value
+
+        instance_ids = [i.instance_id for i in g.instances]
+        instances = ec2.get_only_instances(instance_ids)
+        sg['instances'] = [{'aws_id': i.id, 'ip': i.private_ip_address} for i in instances]
+
+        groups.append(sg)
+
+    return groups
+
+
 def get_account_alias(region):
     try:
         c = boto.iam.connect_to_region(region)
@@ -229,9 +257,11 @@ def main():
     if len(apps) > 0:
         infrastructure_account = apps[0]['infrastructure_account']
         elbs = get_running_elbs(region, infrastructure_account)
+        scaling_groups = get_auto_scaling_groups(region, infrastructure_account)
         rds = get_rds_instances(region, infrastructure_account)
     else:
         elbs = []
+        scaling_groups = []
         rds = []
 
     if args.json:
@@ -253,6 +283,9 @@ def main():
             current_entities = []
 
             for e in elbs:
+                current_entities.append(e["id"])
+
+            for e in scaling_groups:
                 current_entities.append(e["id"])
 
             for a in apps:
@@ -303,6 +336,9 @@ def main():
 
             for instance in apps:
                 put_entity('instance', instance)
+
+            for asg in scaling_groups:
+                put_entity('Auto Scaling group', asg)
 
             for elb in elbs:
                 put_entity('elastic load balancer', elb)
