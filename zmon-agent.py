@@ -181,7 +181,7 @@ def get_auto_scaling_groups(region, acc):
             sg['stack_name_tag'] = stack_name_tag[0]['Value']
 
         instance_ids = [i['InstanceId'] for i in g['Instances']]
-        reservations = es_client.describe_instances(InstanceIds=instance_ids)['Reservations']
+        reservations = ec2_client.describe_instances(InstanceIds=instance_ids)['Reservations']
         sg['instances'] = []
         for r in reservations:
             for i in r['Instances']:
