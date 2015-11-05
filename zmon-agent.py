@@ -62,7 +62,7 @@ def get_running_apps(region):
                 user_data_response = aws_client.describe_instance_attribute(InstanceId=i['InstanceId'],
                                                                             Attribute='userData')
                 user_data = base64.b64decode(user_data_response['UserData']['Value'])
-                user_data = yaml.load(user_data)
+                user_data = yaml.safe_load(user_data)
             except:
                 pass
 
@@ -271,7 +271,7 @@ def main():
         except:
             logging.error("Region was not specified as a parameter and can not be fetched from instance meta-data!")
             raise
-        region = response.text
+        region = response.text[:-1]
     else:
         region = args.region
 
