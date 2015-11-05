@@ -59,13 +59,14 @@ def get_running_apps(region):
                 continue
 
             try:
-                user_data_response = aws_client.describe_instance_attribute(InstanceId=i['InstanceId'], Attribute='userData')
+                user_data_response = aws_client.describe_instance_attribute(InstanceId=i['InstanceId'],
+                                                                            Attribute='userData')
                 user_data = base64.b64decode(user_data_response['UserData']['Value'])
                 user_data = yaml.load(user_data)
             except:
                 pass
 
-            tags={}
+            tags = {}
             if i['Tags']:
                 for t in i['Tags']:
                     tags[t['Key']] = t['Value']
@@ -119,7 +120,8 @@ def get_running_apps(region):
                 result.append(ins)
 
             else:
-                ins['id'] = '{}-{}[aws:{}:{}]'.format(i['InstanceId'], get_hash(i['PrivateIpAddress'] + ""), owner, region)
+                ins['id'] = '{}-{}[aws:{}:{}]'.format(i['InstanceId'], get_hash(i['PrivateIpAddress'] + ""),
+                                                      owner, region)
                 if 'Name' in tags:
                     ins['name'] = tags['Name'].replace(" ", "-")
 
@@ -164,11 +166,11 @@ def get_running_elbs(region, acc):
 
 def get_auto_scaling_groups(region, acc):
     groups = []
-    as_client  = boto3.client('autoscaling')
+    as_client = boto3.client('autoscaling')
     ec2_client = boto3.client('ec2')
     asgs = as_client.describe_auto_scaling_groups()['AutoScalingGroups']
     for g in asgs:
-        sg = {'type':'asg', 'infrastructure_account':acc, 'region': region, 'created_by':'agent'}
+        sg = {'type': 'asg', 'infrastructure_account': acc, 'region': region, 'created_by': 'agent'}
         sg['id'] = 'asg-{}[{}:{}]'.format(g['AutoScalingGroupName'], acc, region)
         sg['name'] = g['AutoScalingGroupName']
         sg['availability_zones'] = g['AvailabilityZones']
@@ -176,7 +178,7 @@ def get_auto_scaling_groups(region, acc):
         sg['max_size'] = g['MaxSize']
         sg['min_size'] = g['MinSize']
 
-        stack_name_tag = [t for t in g['Tags'] if t['Key']=='StackName']
+        stack_name_tag = [t for t in g['Tags'] if t['Key'] == 'StackName']
         if stack_name_tag:
             sg['stack_name_tag'] = stack_name_tag[0]['Value']
 
