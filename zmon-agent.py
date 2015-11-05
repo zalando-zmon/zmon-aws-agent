@@ -14,6 +14,7 @@ import string
 BASE_LIST = string.digits + string.letters
 BASE_DICT = dict((c, i) for i, c in enumerate(BASE_LIST))
 
+logging.getLogger('urllib3.connectionpool').setLevel(logging.WARN)
 
 def base_decode(string, reverse_base=BASE_DICT):
     length = len(reverse_base)
