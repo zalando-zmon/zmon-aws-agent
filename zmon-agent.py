@@ -43,7 +43,7 @@ def get_hash(ip):
 
 
 def get_running_apps(region):
-    aws_client = boto3.client('ec2')
+    aws_client = boto3.client('ec2', region_name=region)
     rs = aws_client.describe_instances()['Reservations']
     result = []
 
@@ -131,7 +131,7 @@ def get_running_apps(region):
 
 
 def get_running_elbs(region, acc):
-    elb_client = boto3.client('elb')
+    elb_client = boto3.client('elb', region_name=region)
     elbs = elb_client.describe_load_balancers()['LoadBalancerDescriptions']
 
     lbs = []
@@ -166,8 +166,8 @@ def get_running_elbs(region, acc):
 
 def get_auto_scaling_groups(region, acc):
     groups = []
-    as_client = boto3.client('autoscaling')
-    ec2_client = boto3.client('ec2')
+    as_client = boto3.client('autoscaling', region_name=region)
+    ec2_client = boto3.client('ec2', region_name=region)
     asgs = as_client.describe_auto_scaling_groups()['AutoScalingGroups']
     for g in asgs:
         sg = {'type': 'asg', 'infrastructure_account': acc, 'region': region, 'created_by': 'agent'}
@@ -198,7 +198,7 @@ def get_auto_scaling_groups(region, acc):
 
 def get_account_alias(region):
     try:
-        iam_client = boto3.client('iam')
+        iam_client = boto3.client('iam', region_name=region)
         resp = iam_client.list_account_aliases()
         return resp['AccountAliases'][0]
     except:
@@ -223,7 +223,7 @@ def get_rds_instances(region, acc):
     rds_instances = []
 
     try:
-        rds_client = boto3.client('rds')
+        rds_client = boto3.client('rds', region_name=region)
         instances = rds_client.describe_db_instances()
 
         for i in instances["DBInstances"]:
