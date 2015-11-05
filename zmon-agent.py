@@ -164,26 +164,31 @@ def get_running_elbs(region, acc):
 
 def get_auto_scaling_groups(region, acc):
     groups = []
-
-    ec2 = boto.ec2.connect_to_region(region)
-    autoscale = boto.ec2.autoscale.connect_to_region(region)
-    for g in autoscale.get_all_groups():
+    as_client  = boto3.client('autoscaling')
+    ec2_client = boto3.client('ec2')
+    asgs = as_client.describe_auto_scaling_groups()['AutoScalingGroups']
+    for g in asgs:
         sg = {'type':'asg', 'infrastructure_account':acc, 'region': region, 'created_by':'agent'}
-        sg['id'] = 'asg-{}[{}:{}]'.format(g.name, acc, region)
-        sg['name'] = g.name
-        sg['availability_zones'] = g.availability_zones
-        sg['desired_capacity'] = g.desired_capacity
-        sg['max_size'] = g.max_size
-        sg['min_size'] = g.min_size
+        sg['id'] = 'asg-{}[{}:{}]'.format(g['AutoScalingGroupName'], acc, region)
+        sg['name'] = g['AutoScalingGroupName']
+        sg['availability_zones'] = g['AvailabilityZones']
+        sg['desired_capacity'] = g['DesiredCapacity']
+        sg['max_size'] = g['MaxSize']
+        sg['min_size'] = g['MinSize']
 
-        stack_name_tag = [t for t in g.tags if t.key=='StackName']
+        stack_name_tag = [t for t in g['Tags'] if t['Key']=='StackName']
         if stack_name_tag:
-            sg['stack_name_tag'] = stack_name_tag[0].value
+            sg['stack_name_tag'] = stack_name_tag[0]['Value']
 
-        instance_ids = [i.instance_id for i in g.instances]
-        instances = ec2.get_only_instances(instance_ids)
-        sg['instances'] = [{'aws_id': i.id, 'ip': i.private_ip_address} for i in instances]
-
+        instance_ids = [i['InstanceId'] for i in g['Instances']]
+        reservations = es_client.describe_instances(InstanceIds=instance_ids)['Reservations']
+        sg['instances'] = []
+        for r in reservations:
+            for i in r['Instances']:
+                sg['instances'].append({
+                    'aws_id': i['InstanceId'],
+                    'ip': i['PrivateIpAddress'],
+                })
         groups.append(sg)
 
     return groups
