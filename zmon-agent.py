@@ -2,13 +2,7 @@ from __future__ import print_function
 
 import os
 import argparse
-import boto.iam
-import boto.ec2
-import boto.ec2.elb
-import boto.ec2.instance
-import boto.cloudformation
-import boto.utils
-import boto.rds2
+import boto3
 import logging
 import json
 import base64
@@ -49,39 +43,59 @@ def get_hash(ip):
 
 
 def get_running_apps(region):
-    aws = boto.ec2.connect_to_region(region)
-    rs = aws.get_all_reservations()
+    aws_client = boto3.client('ec2')
+    rs = aws_client.describe_instances()['Reservations']
     result = []
 
     for r in rs:
 
-        owner = r.owner_id
+        owner = r['OwnerId']
 
-        instances = r.instances
+        instances = r['Instances']
 
         for i in instances:
 
-            if str(i._state) != 'running(16)':
+            if str(i['State']['Name']) != 'running':
                 continue
 
             try:
-                user_data = base64.b64decode(str(i.get_attribute('userData')["userData"]))
+                user_data_response = aws_client.describe_instance_attribute(InstanceId=i['InstanceId'], Attribute='userData')
+                user_data = base64.b64decode(user_data_response['UserData']['Value'])
                 user_data = yaml.load(user_data)
             except:
                 pass
 
+            tags={}
+            if i['Tags']:
+                for t in i['Tags']:
+                    tags[t['Key']] = t['Value']
+
+            ins = {
+                'type': 'instance',
+                'created_by': 'agent',
+                'region': region,
+                'ip': i['PrivateIpAddress'],
+                'host': i['PrivateIpAddress'],
+                'instance_type': i['InstanceType'],
+                'aws_id': i['InstanceId'],
+                'infrastructure_account': 'aws:{}'.format(owner),
+            }
+
             # for now limit us to instances with valid user data ( senza/taupage )
             if isinstance(user_data, dict) and 'application_id' in user_data:
-                ins = {'type': 'instance', 'created_by': 'agent'}
-                ins['state_reason'] = i.state_reason
-                ins['events'] = i.eventsSet
+                ins['state_reason'] = i['StateTransitionReason']
+
+                instance_status_resp = aws_client.describe_instance_status(InstanceIds=[i['InstanceId']])
+                if 'Events' in instance_status_resp['InstanceStatuses'][0]:
+                    ins['events'] = instance_status_resp['InstanceStatuses'][0]['Events']
+                else:
+                    ins['events'] = []
+
                 ins['id'] = '{}-{}-{}[aws:{}:{}]'.format(user_data['application_id'],
                                                          user_data['application_version'],
-                                                         get_hash(i.private_ip_address + ""),
+                                                         get_hash(i['PrivateIpAddress'] + ""),
                                                          owner,
                                                          region)
-                ins['instance_type'] = i.instance_type
-                ins['aws_id'] = i.id
 
                 ins['application_id'] = user_data['application_id']
                 ins['application_version'] = user_data['application_version']
@@ -91,38 +105,23 @@ def get_running_apps(region):
                     ins['ports'] = user_data['ports']
 
                 ins['runtime'] = user_data['runtime']
-                ins['ip'] = i.private_ip_address
-                ins['host'] = i.private_dns_name
-                ins['infrastructure_account'] = 'aws:{}'.format(owner)
-                ins['region'] = region
 
-                if i.tags:
-                    if 'StackVersion' in i.tags:
-                        ins['stack'] = i.tags['Name']
-                        ins['resource_id'] = i.tags['aws:cloudformation:logical-id']
+                if 'StackVersion' in tags:
+                    ins['stack'] = tags['Name']
+                    ins['resource_id'] = tags['aws:cloudformation:logical-id']
 
-                    if "Name" in i.tags and 'cassandra' in i.tags['Name'] and 'opscenter' not in i.tags['Name']:
-                        cas = ins.copy()
-                        cas['type'] = 'cassandra'
-                        cas['id'] = "cas-{}".format(cas['id'])
-                        result.append(cas)
+                if 'Name' in tags and 'cassandra' in tags['Name'] and 'opscenter' not in tags['Name']:
+                    cas = ins.copy()
+                    cas['type'] = 'cassandra'
+                    cas['id'] = "cas-{}".format(cas['id'])
+                    result.append(cas)
 
                 result.append(ins)
 
             else:
-
-                ins = {'type': 'instance', 'created_by': 'agent'}
-                ins['id'] = '{}-{}[aws:{}:{}]'.format(i.id, get_hash(i.private_ip_address+""), owner, region)
-                ins['infrastructure_account'] = 'aws:{}'.format(owner)
-                ins['ip'] = i.private_ip_address
-                ins['host'] = i.private_dns_name
-                ins['region'] = region
-                ins['instance_type'] = i.instance_type
-                ins['aws_id'] = i.id
-
-                if i.tags:
-                    if 'Name' in i.tags:
-                        ins['name'] = i.tags['Name'].replace(" ", "-")
+                ins['id'] = '{}-{}[aws:{}:{}]'.format(i['InstanceId'], get_hash(i['PrivateIpAddress'] + ""), owner, region)
+                if 'Name' in tags:
+                    ins['name'] = tags['Name'].replace(" ", "-")
 
                 result.append(ins)
 
@@ -130,33 +129,32 @@ def get_running_apps(region):
 
 
 def get_running_elbs(region, acc):
-    aws = boto.ec2.elb.connect_to_region(region)
-
-    elbs = aws.get_all_load_balancers()
+    elb_client = boto3.client('elb')
+    elbs = elb_client.describe_load_balancers()['LoadBalancerDescriptions']
 
     lbs = []
 
     for e in elbs:
         lb = {'type': 'elb', 'infrastructure_account': acc, 'region': region, 'created_by': 'agent'}
-        lb['id'] = 'elb-{}[{}:{}]'.format(e.name, acc, region)
-        lb['dns_name'] = e.dns_name
-        lb['host'] = e.dns_name
-        lb['name'] = e.name
-        lb['scheme'] = e.scheme
+        lb['id'] = 'elb-{}[{}:{}]'.format(e['LoadBalancerName'], acc, region)
+        lb['dns_name'] = e['DNSName']
+        lb['host'] = e['DNSName']
+        lb['name'] = e['LoadBalancerName']
+        lb['scheme'] = e['Scheme']
 
-        stack = e.name.rsplit('-', 1)
+        stack = e['LoadBalancerName'].rsplit('-', 1)
         lb['stack_name'] = stack[0]
         lb['stack_version'] = stack[-1]
 
         lb['url'] = 'https://{}'.format(lb['host'])
         lb['region'] = region
-        lb['members'] = len(e.instances)
+        lb['members'] = len(e['Instances'])
         lbs.append(lb)
 
-        ihealth = aws.describe_instance_health(load_balancer_name=e.name)
+        ihealth = elb_client.describe_instance_health(LoadBalancerName=e['LoadBalancerName'])['InstanceStates']
         in_service = 0
         for ih in ihealth:
-            if ih.state == 'InService':
+            if ih['State'] == 'InService':
                 in_service += 1
 
         lb['active_members'] = in_service
@@ -166,9 +164,9 @@ def get_running_elbs(region, acc):
 
 def get_account_alias(region):
     try:
-        c = boto.iam.connect_to_region(region)
-        resp = c.get_account_alias()
-        return resp['list_account_aliases_response']['list_account_aliases_result']['account_aliases'][0]
+        iam_client = boto3.client('iam')
+        resp = iam_client.list_account_aliases()
+        return resp['AccountAliases'][0]
     except:
         return None
 
@@ -191,9 +189,10 @@ def get_rds_instances(region, acc):
     rds_instances = []
 
     try:
-        aws = boto.rds2.connect_to_region(region)
-        instances = aws.describe_db_instances()
-        for i in instances["DescribeDBInstancesResponse"]["DescribeDBInstancesResult"]["DBInstances"]:
+        rds_client = boto3.client('rds')
+        instances = rds_client.describe_db_instances()
+
+        for i in instances["DBInstances"]:
 
             db = {"id": "rds-{}[{}]".format(i["DBInstanceIdentifier"], acc), "created_by": "agent",
                   "infrastructure_account": "{}".format(acc)}
@@ -233,7 +232,12 @@ def main():
 
     if not args.region:
         logging.info("Trying to figure out region...")
-        region = boto.utils.get_instance_metadata()['placement']['availability-zone'][:-1]
+        try:
+            response = requests.get('http://169.254.169.254/latest/meta-data/placement/availability-zone', timeout=2)
+        except:
+            logging.error("Region was not specified as a parameter and can not be fetched from instance meta-data!")
+            raise
+        region = response.text
     else:
         region = args.region
 
