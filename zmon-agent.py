@@ -60,6 +60,7 @@ def get_running_apps(region):
             if str(i['State']['Name']) != 'running':
                 continue
 
+            user_data = None
             try:
                 user_data_response = aws_client.describe_instance_attribute(InstanceId=i['InstanceId'],
                                                                             Attribute='userData')
