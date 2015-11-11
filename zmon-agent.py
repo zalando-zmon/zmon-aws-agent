@@ -278,22 +278,29 @@ def get_elasticache_nodes(region, acc):
 
 
 def get_dynamodb_tables(region, acc):
-    ddb = boto3.client('dynamodb', region_name = region)
     tables = []
-    for tn in ddb.list_tables()['TableNames']:
-        t = ddb.describe_table(TableName=tn)['Table']
-        if t['TableStatus'] not in ['ACTIVE', 'UPDATING']:
-            continue
-        table = {
-            "id": "dynamodb-{}[{}:{}]".format(t["TableName"], acc, region),
-            "region": region,
-            "created_by": "agent",
-            "infrastructure_account": "{}".format(acc),
-            "type": "dynamodb",
-            "name": "{}".format(t["TableName"]),
-            "arn": "{}".format(t["TableArn"])
-        }
-        tables.append(table)
+
+    # catch exception here, original agent policy does not allow scanning dynamodb
+    try: 
+        ddb = boto3.client('dynamodb', region_name = region)
+        tables = []
+        for tn in ddb.list_tables()['TableNames']:
+            t = ddb.describe_table(TableName=tn)['Table']
+            if t['TableStatus'] not in ['ACTIVE', 'UPDATING']:
+                continue
+            table = {
+                "id": "dynamodb-{}[{}:{}]".format(t["TableName"], acc, region),
+                "region": region,
+                "created_by": "agent",
+                "infrastructure_account": "{}".format(acc),
+                "type": "dynamodb",
+                "name": "{}".format(t["TableName"]),
+                "arn": "{}".format(t["TableArn"])
+            }
+            tables.append(table)
+    except:
+        pass
+
     return tables
 
 
