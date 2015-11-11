@@ -393,7 +393,7 @@ def main():
         rds = []
 
     if args.json:
-        d = {'apps': apps, 'elbs': elbs, 'rds': rds, 'elc': elasticache, 'dynamodb': dynamodb }
+        d = {'apps': apps, 'elbs': elbs, 'rds': rds, 'elc': elasticache, 'dynamodb': dynamodb}
         print(json.dumps(d))
     else:
 
