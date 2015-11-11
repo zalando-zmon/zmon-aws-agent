@@ -277,7 +277,7 @@ def get_elasticache_nodes(region, acc):
 
 
 def get_dynamodb_tables(region, acc):
-    ddb = boto3.client('dynamodb')
+    ddb = boto3.client('dynamodb', region_name = region)
     tables = []
     for tn in ddb.list_tables()['TableNames']:
         t = ddb.describe_table(TableName=tn)['Table']
