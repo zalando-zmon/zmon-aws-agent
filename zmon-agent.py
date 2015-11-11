@@ -236,10 +236,11 @@ def get_auto_scaling_groups(region, acc):
         sg['instances'] = []
         for r in reservations:
             for i in r['Instances']:
-                sg['instances'].append({
-                    'aws_id': i['InstanceId'],
-                    'ip': i['PrivateIpAddress'],
-                })
+                if 'PrivateIpAddress' in i:
+                    sg['instances'].append({
+                        'aws_id': i['InstanceId'],
+                        'ip': i['PrivateIpAddress'],
+                    })
         groups.append(sg)
 
     return groups
