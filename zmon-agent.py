@@ -3,12 +3,14 @@ from __future__ import print_function
 import os
 import argparse
 import boto3
+from botocore.exceptions import ClientError
 import logging
 import json
 import base64
 import yaml
 import requests
 import hashlib
+import time
 
 import string
 BASE_LIST = string.digits + string.letters
@@ -60,14 +62,26 @@ def get_running_apps(region):
             if str(i['State']['Name']) != 'running':
                 continue
 
+            max_tries = 10
+            sleep_time = 5
             user_data = None
-            try:
-                user_data_response = aws_client.describe_instance_attribute(InstanceId=i['InstanceId'],
-                                                                            Attribute='userData')
-                user_data = base64.b64decode(user_data_response['UserData']['Value'])
-                user_data = yaml.safe_load(user_data)
-            except:
-                pass
+            for n in range(max_tries):
+                try:
+                    user_data_response = aws_client.describe_instance_attribute(InstanceId=i['InstanceId'],
+                                                                                Attribute='userData')
+                    user_data = base64.b64decode(user_data_response['UserData']['Value'])
+                    user_data = yaml.safe_load(user_data)
+                    break
+                except ClientError as e:
+                    if e.response['Error']['Code'] == "Throttling":
+                        if i < max_tries - 1:
+                            logging.info("Throttling AWS API requests...")
+                            time.sleep(sleep_time)
+                            sleep_time = min(30, sleep_time * 1.5)
+                            continue
+                    pass
+                except:
+                    pass
 
             tags = {}
             if i['Tags']:
@@ -89,7 +103,22 @@ def get_running_apps(region):
             if isinstance(user_data, dict) and 'application_id' in user_data:
                 ins['state_reason'] = i['StateTransitionReason']
 
-                instance_status_resp = aws_client.describe_instance_status(InstanceIds=[i['InstanceId']])
+                instance_status_resp = []
+                max_tries = 10
+                sleep_time = 5
+                for n in range(max_tries):
+                    try:
+                        instance_status_resp = aws_client.describe_instance_status(InstanceIds=[i['InstanceId']])
+                        break
+                    except ClientError as e:
+                        if e.response['Error']['Code'] == "Throttling":
+                            if n < max_tries - 1:
+                                logging.info("Throttling AWS API requests...")
+                                time.sleep(sleep_time)
+                                sleep_time = min(30, sleep_time * 1.5)
+                                continue
+                        raise
+
                 if 'Events' in instance_status_resp['InstanceStatuses'][0]:
                     ins['events'] = instance_status_resp['InstanceStatuses'][0]['Events']
                 else:
@@ -156,7 +185,24 @@ def get_running_elbs(region, acc):
         lb['members'] = len(e['Instances'])
         lbs.append(lb)
 
-        ihealth = elb_client.describe_instance_health(LoadBalancerName=e['LoadBalancerName'])['InstanceStates']
+        max_tries = 10
+        sleep_time = 5
+        ihealth = []
+        for i in range(max_tries):
+            try:
+                ihealth = elb_client.describe_instance_health(LoadBalancerName=e['LoadBalancerName'])['InstanceStates']
+                break
+            except ClientError as e:
+                if e.response['Error']['Code'] == "Throttling":
+                    if i < max_tries - 1:
+                        # Try again
+                        time.sleep(sleep_time)
+                        sleep_time = min(30, sleep_time * 1.5)
+                        continue
+                if e.response['Error']['Code'] in ('LoadBalancerNotFound', 'ValidationError', 'Throttling'):
+                    break
+                raise
+
         in_service = 0
         for ih in ihealth:
             if ih['State'] == 'InService':
@@ -197,6 +243,57 @@ def get_auto_scaling_groups(region, acc):
         groups.append(sg)
 
     return groups
+
+
+def get_elasticache_nodes(region, acc):
+    elc = boto3.client('elasticache', region_name=region)
+    nodes = []
+    for c in elc.describe_cache_clusters(ShowCacheNodeInfo=True)['CacheClusters']:
+        if c["CacheClusterStatus"] not in ["available", "modifying", "snapshotting"]:
+            continue
+        for n in c['CacheNodes']:
+            if n["CacheNodeStatus"] != "available":
+                continue
+
+            node = {
+                "id": "elc-{}-{}[{}:{}]".format(c["CacheClusterId"], n["CacheNodeId"], acc, region),
+                "region": region,
+                "created_by": "agent",
+                "infrastructure_account": "{}".format(acc),
+                "type": "elc",
+                "cluster_id": c["CacheClusterId"],
+                "node_id": n["CacheNodeId"],
+                "engine": c["Engine"],
+                "version": c["EngineVersion"],
+                "cluster_num_nodes": c["NumCacheNodes"],
+                "host": n["Endpoint"]["Address"],
+                "port": n["Endpoint"]["Port"],
+            }
+
+            if "ReplicationGroupId" in c:
+                node["replication_group"] = c["ReplicationGroupId"]
+            nodes.append(node)
+    return nodes
+
+
+def get_dynamodb_tables(region, acc):
+    ddb = boto3.client('dynamodb')
+    tables = []
+    for tn in ddb.list_tables()['TableNames']:
+        t = ddb.describe_table(TableName=tn)['Table']
+        if t['TableStatus'] not in ['ACTIVE', 'UPDATING']:
+            continue
+        table = {
+            "id": "dynamodb-{}[{}:{}]".format(t["TableName"], acc, region),
+            "region": region,
+            "created_by": "agent",
+            "infrastructure_account": "{}".format(acc),
+            "type": "dynamodb",
+            "name": "{}".format(t["TableName"]),
+            "arn": "{}".format(t["TableArn"])
+        }
+        tables.append(table)
+    return tables
 
 
 def get_account_alias(region):
@@ -288,13 +385,15 @@ def main():
         elbs = get_running_elbs(region, infrastructure_account)
         scaling_groups = get_auto_scaling_groups(region, infrastructure_account)
         rds = get_rds_instances(region, infrastructure_account)
+        elasticache = get_elasticache_nodes(region, infrastructure_account)
+        dynamodb = get_dynamodb_tables(region, infrastructure_account)
     else:
         elbs = []
         scaling_groups = []
         rds = []
 
     if args.json:
-        d = {'apps': apps, 'elbs': elbs}
+        d = {'apps': apps, 'elbs': elbs, 'rds': rds, 'elc': elasticache, 'dynamodb': dynamodb}
         print(json.dumps(d))
     else:
 
@@ -324,6 +423,12 @@ def main():
                 current_entities.append(a["id"])
 
             for a in rds:
+                current_entities.append(a["id"])
+
+            for a in elasticache:
+                current_entities.append(a["id"])
+
+            for a in dynamodb:
                 current_entities.append(a["id"])
 
             current_entities.append(ia_entity["id"])
