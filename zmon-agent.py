@@ -10,6 +10,7 @@ import base64
 import yaml
 import requests
 import hashlib
+import time
 
 import string
 BASE_LIST = string.digits + string.letters
@@ -243,6 +244,7 @@ def get_auto_scaling_groups(region, acc):
 
     return groups
 
+
 def get_elasticache_nodes(region, acc):
     elc = boto3.client('elasticache', region_name=region)
     nodes = []
@@ -273,6 +275,7 @@ def get_elasticache_nodes(region, acc):
             nodes.append(node)
     return nodes
 
+
 def get_dynamodb_tables(region, acc):
     ddb = boto3.client('dynamodb')
     tables = []
@@ -291,6 +294,7 @@ def get_dynamodb_tables(region, acc):
         }
         tables.append(table)
     return tables
+
 
 def get_account_alias(region):
     try:
