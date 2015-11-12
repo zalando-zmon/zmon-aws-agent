@@ -475,7 +475,7 @@ def main():
             for e in to_remove:
                 logging.info("removing instance: {}".format(e))
 
-                r = requests.delete(args.entityservice+"{}/".format(e), auth=auth)
+                r = requests.delete(args.entityservice + "{}/".format(e), auth=auth)
 
                 logging.info("...%s", r.status_code)
 
