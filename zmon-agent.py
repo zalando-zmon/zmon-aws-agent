@@ -74,7 +74,7 @@ def get_running_apps(region):
                     break
                 except ClientError as e:
                     if e.response['Error']['Code'] == "Throttling":
-                        if i < max_tries - 1:
+                        if n < max_tries - 1:
                             logging.info("Throttling AWS API requests...")
                             time.sleep(sleep_time)
                             sleep_time = min(30, sleep_time * 1.5)
@@ -281,8 +281,8 @@ def get_dynamodb_tables(region, acc):
     tables = []
 
     # catch exception here, original agent policy does not allow scanning dynamodb
-    try: 
-        ddb = boto3.client('dynamodb', region_name = region)
+    try:
+        ddb = boto3.client('dynamodb', region_name=region)
         tables = []
         for tn in ddb.list_tables()['TableNames']:
             t = ddb.describe_table(TableName=tn)['Table']
@@ -298,7 +298,8 @@ def get_dynamodb_tables(region, acc):
                 "arn": "{}".format(t["TableArn"])
             }
             tables.append(table)
-    except:
+    except Exception as e:
+        logging.info("Got exception while listing dynamodb tables, IAM role not allowed to access? {}".format(e))
         pass
 
     return tables
@@ -393,15 +394,15 @@ def main():
         elbs = get_running_elbs(region, infrastructure_account)
         scaling_groups = get_auto_scaling_groups(region, infrastructure_account)
         rds = get_rds_instances(region, infrastructure_account)
-        elasticache = get_elasticache_nodes(region, infrastructure_account)
-        dynamodb = get_dynamodb_tables(region, infrastructure_account)
+        elasticaches = get_elasticache_nodes(region, infrastructure_account)
+        dynamodbs = get_dynamodb_tables(region, infrastructure_account)
     else:
         elbs = []
         scaling_groups = []
         rds = []
 
     if args.json:
-        d = {'apps': apps, 'elbs': elbs, 'rds': rds, 'elc': elasticache, 'dynamodb': dynamodb}
+        d = {'apps': apps, 'elbs': elbs, 'rds': rds, 'elc': elasticaches, 'dynamodb': dynamodbs}
         print(json.dumps(d))
     else:
 
@@ -433,10 +434,10 @@ def main():
             for a in rds:
                 current_entities.append(a["id"])
 
-            for a in elasticache:
+            for a in elasticaches:
                 current_entities.append(a["id"])
 
-            for a in dynamodb:
+            for a in dynamodbs:
                 current_entities.append(a["id"])
 
             current_entities.append(ia_entity["id"])
@@ -499,6 +500,12 @@ def main():
 
             for app in application_entities:
                 put_entity('application', app)
+
+            for elasticache in elasticaches:
+                put_entity('elasticache', elasticache)
+
+            for dynamodb in dynamodbs:
+                put_entity('dynamodb', dynamodb)
 
 if __name__ == '__main__':
     main()
