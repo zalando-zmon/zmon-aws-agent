@@ -174,7 +174,7 @@ def get_running_elbs(region, acc):
     elbs = elb_client.describe_load_balancers()['LoadBalancerDescriptions']
 
     # get all the tags and cache them in a dict
-    elb_names = [e['LoadBalancerNames'] for e in elbs]
+    elb_names = [e['LoadBalancerName'] for e in elbs]
     tag_desc = elb_client.describe_tags(LoadBalancerNames=elb_names)
     tags = { d['LoadBalancerName']: get_tags_dict(d['Tags'])
              for d in tag_desc['TagDescriptions'] }
