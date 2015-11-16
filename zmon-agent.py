@@ -46,6 +46,16 @@ def get_hash(ip):
     return h
 
 
+def get_tags_dict(tags):
+    return { t['Key']: t['Value'] for t in tags }
+
+def assign_stack_name_and_version_from_tags(obj, tags):
+    if 'StackName' in tags:
+        obj['stack_name'] = tags['StackName']
+    if 'StackVersion' in tags:
+        obj['stack_version'] = tags['StackVersion']
+
+
 def get_running_apps(region):
     aws_client = boto3.client('ec2', region_name=region)
     rs = aws_client.describe_instances()['Reservations']
@@ -83,10 +93,7 @@ def get_running_apps(region):
                 except:
                     pass
 
-            tags = {}
-            if i['Tags']:
-                for t in i['Tags']:
-                    tags[t['Key']] = t['Value']
+            tags = get_tags_dict(i['Tags'])
 
             ins = {
                 'type': 'instance',
@@ -166,19 +173,25 @@ def get_running_elbs(region, acc):
     elb_client = boto3.client('elb', region_name=region)
     elbs = elb_client.describe_load_balancers()['LoadBalancerDescriptions']
 
+    # get all the tags and cache them in a dict
+    elb_names = [e['LoadBalancerNames'] for e in elbs]
+    tag_desc = elb_client.describe_tags(LoadBalancerNames=elb_names)
+    tags = { d['LoadBalancerName']: get_tags_dict(d['Tags'])
+             for d in tag_desc['TagDescriptions'] }
+
     lbs = []
 
     for e in elbs:
+        name = e['LoadBalancerName']
+
         lb = {'type': 'elb', 'infrastructure_account': acc, 'region': region, 'created_by': 'agent'}
-        lb['id'] = 'elb-{}[{}:{}]'.format(e['LoadBalancerName'], acc, region)
+        lb['id'] = 'elb-{}[{}:{}]'.format(name, acc, region)
         lb['dns_name'] = e['DNSName']
         lb['host'] = e['DNSName']
-        lb['name'] = e['LoadBalancerName']
+        lb['name'] = name
         lb['scheme'] = e['Scheme']
 
-        stack = e['LoadBalancerName'].rsplit('-', 1)
-        lb['stack_name'] = stack[0]
-        lb['stack_version'] = stack[-1]
+        assign_stack_name_and_version_from_tags(lb, tags[name])
 
         lb['url'] = 'https://{}'.format(lb['host'])
         lb['region'] = region
@@ -227,9 +240,7 @@ def get_auto_scaling_groups(region, acc):
         sg['max_size'] = g['MaxSize']
         sg['min_size'] = g['MinSize']
 
-        stack_name_tag = [t for t in g['Tags'] if t['Key'] == 'StackName']
-        if stack_name_tag:
-            sg['stack_name_tag'] = stack_name_tag[0]['Value']
+        assign_stack_name_and_version_from_tags(sg, get_tags_dict(g['Tags']))
 
         instance_ids = [i['InstanceId'] for i in g['Instances']]
         reservations = ec2_client.describe_instances(InstanceIds=instance_ids)['Reservations']
@@ -464,7 +475,7 @@ def main():
             for e in to_remove:
                 logging.info("removing instance: {}".format(e))
 
-                r = requests.delete(args.entityservice+"{}/".format(e), auth=auth)
+                r = requests.delete(args.entityservice + "{}/".format(e), auth=auth)
 
                 logging.info("...%s", r.status_code)
 
