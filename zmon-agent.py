@@ -61,10 +61,11 @@ def get_tags_dict(tags):
     return { t['Key']: t['Value'] for t in tags }
 
 def assign_stack_name_and_version_from_tags(obj, tags):
-    if 'StackName' in tags:
-        obj['stack_name'] = tags['StackName']
-    if 'StackVersion' in tags:
-        obj['stack_version'] = tags['StackVersion']
+    import inflection
+    for tag in tags:
+        key = inflection.underscore(tag['Key'])
+        if key not in obj:
+            obj[key] = tag['Value']
 
 
 def get_running_apps(region):
@@ -196,7 +197,7 @@ def get_running_elbs(region, acc):
     name_chunks = [elb_names[i: i + 20] for i in range(0, len(elb_names), 20)]
     tag_desc_chunks = [elb_client.describe_tags(LoadBalancerNames=names)
                        for names in name_chunks]
-    tags = { d['LoadBalancerName']: get_tags_dict(d['Tags'])
+    tags = { d['LoadBalancerName']: d['Tags']
              for tag_desc in tag_desc_chunks for d in tag_desc['TagDescriptions'] }
 
     lbs = []
@@ -210,12 +211,10 @@ def get_running_elbs(region, acc):
         lb['host'] = e['DNSName']
         lb['name'] = name
         lb['scheme'] = e['Scheme']
-
-        assign_stack_name_and_version_from_tags(lb, tags[name])
-
         lb['url'] = 'https://{}'.format(lb['host'])
         lb['region'] = region
         lb['members'] = len(e['Instances'])
+        assign_stack_name_and_version_from_tags(lb, tags[name])
         lbs.append(lb)
 
         max_tries = 10
@@ -259,8 +258,7 @@ def get_auto_scaling_groups(region, acc):
         sg['desired_capacity'] = g['DesiredCapacity']
         sg['max_size'] = g['MaxSize']
         sg['min_size'] = g['MinSize']
-
-        assign_stack_name_and_version_from_tags(sg, get_tags_dict(g['Tags']))
+        assign_stack_name_and_version_from_tags(sg, g['Tags'])
 
         instance_ids = [i['InstanceId'] for i in g['Instances'] if i['LifecycleState'] == 'InService']
         reservations = ec2_client.describe_instances(InstanceIds=instance_ids)['Reservations']
