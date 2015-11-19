@@ -175,9 +175,16 @@ def get_running_elbs(region, acc):
 
     # get all the tags and cache them in a dict
     elb_names = [e['LoadBalancerName'] for e in elbs]
-    tag_desc = elb_client.describe_tags(LoadBalancerNames=elb_names)
+    #
+    # boto3 places an arbitrary and undocumented limit of 20 ELB names per
+    # describe_tags() request, and it doesn't provide any sort of paginator:
+    # work around it in a really ugly way
+    #
+    name_chunks = [elb_names[i: i + 20] for i in range(0, len(elb_names), 20)]
+    tag_desc_chunks = [elb_client.describe_tags(LoadBalancerNames=names)
+                       for names in name_chunks]
     tags = { d['LoadBalancerName']: get_tags_dict(d['Tags'])
-             for d in tag_desc['TagDescriptions'] }
+             for tag_desc in tag_desc_chunks for d in tag_desc['TagDescriptions'] }
 
     lbs = []
 
