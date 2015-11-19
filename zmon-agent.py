@@ -287,6 +287,7 @@ def get_elasticache_nodes(region, acc):
                 "cluster_num_nodes": c["NumCacheNodes"],
                 "host": n["Endpoint"]["Address"],
                 "port": n["Endpoint"]["Port"],
+                "instance_type": c["CacheNodeType"],
             }
 
             if "ReplicationGroupId" in c:
