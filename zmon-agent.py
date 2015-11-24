@@ -150,6 +150,8 @@ def get_running_apps(region):
                     ins['stack'] = tags['Name']
                     ins['resource_id'] = tags['aws:cloudformation:logical-id']
 
+                assign_stack_name_and_version_from_tags(ins, tags)
+
                 if 'Name' in tags and 'cassandra' in tags['Name'] and 'opscenter' not in tags['Name']:
                     cas = ins.copy()
                     cas['type'] = 'cassandra'
