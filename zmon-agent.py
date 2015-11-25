@@ -11,12 +11,23 @@ import yaml
 import requests
 import hashlib
 import time
+from pprint import pprint
 
+from datetime import datetime
 import string
+
 BASE_LIST = string.digits + string.letters
 BASE_DICT = dict((c, i) for i, c in enumerate(BASE_LIST))
 
 logging.getLogger('urllib3.connectionpool').setLevel(logging.WARN)
+
+def json_serial(obj):
+    """JSON serializer for objects not serializable by default json code"""
+
+    if isinstance(obj, datetime):
+        serial = obj.isoformat()
+        return serial
+    raise TypeError ("Type not serializable")
 
 
 def base_decode(string, reverse_base=BASE_DICT):
@@ -251,7 +262,7 @@ def get_auto_scaling_groups(region, acc):
 
         assign_stack_name_and_version_from_tags(sg, get_tags_dict(g['Tags']))
 
-        instance_ids = [i['InstanceId'] for i in g['Instances']]
+        instance_ids = [i['InstanceId'] for i in g['Instances'] if i['LifecycleState'] == 'InService']
         reservations = ec2_client.describe_instances(InstanceIds=instance_ids)['Reservations']
         sg['instances'] = []
         for r in reservations:
@@ -493,7 +504,7 @@ def main():
                 logging.info("Adding {} entity: {}".format(entity_type, entity['id']))
 
                 r = requests.put(args.entityservice, auth=auth,
-                                 data=json.dumps(entity),
+                                 data=json.dumps(entity, default=json_serial),
                                  headers={'content-type': 'application/json'})
 
                 logging.info("...%s", r.status_code)
