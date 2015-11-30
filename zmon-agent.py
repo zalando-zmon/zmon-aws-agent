@@ -11,7 +11,6 @@ import yaml
 import requests
 import hashlib
 import time
-from pprint import pprint
 
 from datetime import datetime
 import string
@@ -27,7 +26,7 @@ def json_serial(obj):
     if isinstance(obj, datetime):
         serial = obj.isoformat()
         return serial
-    raise TypeError ("Type not serializable")
+    raise TypeError("Type not serializable")
 
 
 def base_decode(string, reverse_base=BASE_DICT):
