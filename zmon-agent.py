@@ -59,7 +59,7 @@ def get_hash(ip):
 def get_tags_dict(tags):
     return { t['Key']: t['Value'] for t in tags }
 
-def assign_stack_name_and_version_from_tags(obj, tags):
+def assign_properties_from_tags(obj, tags):
     import inflection
     for tag in tags:
         key = inflection.underscore(tag['Key'])
@@ -161,7 +161,7 @@ def get_running_apps(region):
                     ins['stack'] = tags['Name']
                     ins['resource_id'] = tags['aws:cloudformation:logical-id']
 
-                assign_stack_name_and_version_from_tags(ins, tags)
+                assign_properties_from_tags(ins, tags)
 
                 if 'Name' in tags and 'cassandra' in tags['Name'] and 'opscenter' not in tags['Name']:
                     cas = ins.copy()
@@ -213,7 +213,7 @@ def get_running_elbs(region, acc):
         lb['url'] = 'https://{}'.format(lb['host'])
         lb['region'] = region
         lb['members'] = len(e['Instances'])
-        assign_stack_name_and_version_from_tags(lb, tags[name])
+        assign_properties_from_tags(lb, tags[name])
         lbs.append(lb)
 
         max_tries = 10
@@ -257,7 +257,7 @@ def get_auto_scaling_groups(region, acc):
         sg['desired_capacity'] = g['DesiredCapacity']
         sg['max_size'] = g['MaxSize']
         sg['min_size'] = g['MinSize']
-        assign_stack_name_and_version_from_tags(sg, g['Tags'])
+        assign_properties_from_tags(sg, g['Tags'])
 
         instance_ids = [i['InstanceId'] for i in g['Instances'] if i['LifecycleState'] == 'InService']
         reservations = ec2_client.describe_instances(InstanceIds=instance_ids)['Reservations']
