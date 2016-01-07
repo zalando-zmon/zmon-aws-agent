@@ -1,5 +1,3 @@
-from __future__ import print_function
-
 import os
 import argparse
 import boto3
@@ -17,13 +15,11 @@ from pprint import pprint
 from datetime import datetime
 import string
 
-import urllib3
-urllib3.disable_warnings()
-
-BASE_LIST = string.digits + string.letters
+BASE_LIST = string.digits + string.ascii_letters
 BASE_DICT = dict((c, i) for i, c in enumerate(BASE_LIST))
 
 logging.getLogger('urllib3.connectionpool').setLevel(logging.WARN)
+logging.getLogger('requests.packages.urllib3.connectionpool').setLevel(logging.WARN)
 
 def json_serial(obj):
     """JSON serializer for objects not serializable by default json code"""
@@ -48,14 +44,14 @@ def base_encode(integer, base=BASE_LIST):
     ret = ''
     while integer != 0:
         ret = base[integer % length] + ret
-        integer /= length
+        integer = int(integer/length)
 
     return ret
 
 
 def get_hash(ip):
     m = hashlib.sha256()
-    m.update(ip)
+    m.update(ip.encode())
     h = m.hexdigest()
     h = base_encode(int(h[10:18], 16))
     return h
