@@ -159,7 +159,8 @@ def get_running_apps(region):
 
                 if 'StackVersion' in tags:
                     ins['stack'] = tags['Name']
-                    ins['resource_id'] = tags['aws:cloudformation:logical-id']
+                    if 'aws:cloudformation:logical-id' in tags:
+                        ins['resource_id'] = tags['aws:cloudformation:logical-id']
 
                 assign_stack_name_and_version_from_tags(ins, tags)
 
