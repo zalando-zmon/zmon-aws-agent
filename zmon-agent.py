@@ -11,10 +11,14 @@ import yaml
 import requests
 import hashlib
 import time
+import tokens
 from pprint import pprint
 
 from datetime import datetime
 import string
+
+import urllib3
+urllib3.disable_warnings()
 
 BASE_LIST = string.digits + string.letters
 BASE_DICT = dict((c, i) for i, c in enumerate(BASE_LIST))
@@ -402,7 +406,13 @@ def main():
     argp.add_argument('-e', '--entity-service', dest='entityservice')
     argp.add_argument('-r', '--region', dest='region', default=None)
     argp.add_argument('-j', '--json', dest='json', action='store_true')
+    argp.add_argument('--no-oauth2', dest='disable_oauth2', action='store_true', default=False)
     args = argp.parse_args()
+
+    if not args.disable_oauth2:
+        tokens.configure()
+        tokens.manage('uid', ['uid'])
+        tokens.start()
 
     logging.basicConfig(level=logging.INFO)
 
@@ -494,10 +504,16 @@ def main():
             else:
                 auth = None
 
+            headers = {'Content-Type': 'application/json'}
+            if not args.disable_oauth2:
+                token = os.getenv('ZMON_AGENT_TOKEN', tokens.get('uid'))
+                logging.info("Adding oauth2 token to requests {}...{}".format(token[:1], token[-1:]))
+                headers.update({'Authorization':'Bearer {}'.format(token)})
+
             for e in to_remove:
                 logging.info("removing instance: {}".format(e))
 
-                r = requests.delete(args.entityservice + "{}/".format(e), auth=auth)
+                r = requests.delete(args.entityservice + "{}/".format(e), auth=auth, headers=headers)
 
                 logging.info("...%s", r.status_code)
 
@@ -506,7 +522,7 @@ def main():
 
                 r = requests.put(args.entityservice, auth=auth,
                                  data=json.dumps(entity, default=json_serial),
-                                 headers={'content-type': 'application/json'})
+                                 headers=headers)
 
                 logging.info("...%s", r.status_code)
 
