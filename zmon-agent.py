@@ -104,7 +104,7 @@ def get_running_apps(region):
                 except:
                     pass
 
-            tags = get_tags_dict(i['Tags'])
+            tags = get_tags_dict(i.get('Tags', []))
 
             ins = {
                 'type': 'instance',
@@ -197,7 +197,7 @@ def get_running_elbs(region, acc):
     name_chunks = [elb_names[i: i + 20] for i in range(0, len(elb_names), 20)]
     tag_desc_chunks = [elb_client.describe_tags(LoadBalancerNames=names)
                        for names in name_chunks]
-    tags = { d['LoadBalancerName']: get_tags_dict(d['Tags'])
+    tags = { d['LoadBalancerName']: get_tags_dict(d.get('Tags', []))
              for tag_desc in tag_desc_chunks for d in tag_desc['TagDescriptions'] }
 
     lbs = []
@@ -261,7 +261,7 @@ def get_auto_scaling_groups(region, acc):
         sg['max_size'] = g['MaxSize']
         sg['min_size'] = g['MinSize']
 
-        assign_stack_name_and_version_from_tags(sg, get_tags_dict(g['Tags']))
+        assign_stack_name_and_version_from_tags(sg, get_tags_dict(g.get('Tags', [])))
 
         instance_ids = [i['InstanceId'] for i in g['Instances'] if i['LifecycleState'] == 'InService']
         reservations = ec2_client.describe_instances(InstanceIds=instance_ids)['Reservations']
