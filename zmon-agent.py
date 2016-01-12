@@ -10,7 +10,6 @@ import requests
 import hashlib
 import time
 import tokens
-from pprint import pprint
 
 from datetime import datetime
 import string
@@ -27,7 +26,7 @@ def json_serial(obj):
     if isinstance(obj, datetime):
         serial = obj.isoformat()
         return serial
-    raise TypeError ("Type not serializable")
+    raise TypeError("Type not serializable")
 
 
 def base_decode(string, reverse_base=BASE_DICT):
@@ -44,7 +43,7 @@ def base_encode(integer, base=BASE_LIST):
     ret = ''
     while integer != 0:
         ret = base[integer % length] + ret
-        integer = int(integer/length)
+        integer = int(integer / length)
 
     return ret
 
@@ -504,7 +503,7 @@ def main():
             if not args.disable_oauth2:
                 token = os.getenv('ZMON_AGENT_TOKEN', tokens.get('uid'))
                 logging.info("Adding oauth2 token to requests {}...{}".format(token[:1], token[-1:]))
-                headers.update({'Authorization':'Bearer {}'.format(token)})
+                headers.update({'Authorization': 'Bearer {}'.format(token)})
 
             for e in to_remove:
                 logging.info("removing instance: {}".format(e))
