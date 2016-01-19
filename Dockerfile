@@ -1,9 +1,9 @@
-FROM zalando/python:15.01.03
+FROM zalando/python:3.4.0-4
 
 RUN apt-get install -y supervisor
 
 ADD requirements.txt /requirements.txt
-RUN pip install --upgrade -r /requirements.txt
+RUN pip3 install --upgrade -r /requirements.txt
 
 ADD run.sh /run.sh
 ADD start.sh /start.sh

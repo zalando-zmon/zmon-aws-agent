@@ -1,5 +1,3 @@
-from __future__ import print_function
-
 import os
 import argparse
 import boto3
@@ -11,14 +9,16 @@ import yaml
 import requests
 import hashlib
 import time
+import tokens
 
 from datetime import datetime
 import string
 
-BASE_LIST = string.digits + string.letters
+BASE_LIST = string.digits + string.ascii_letters
 BASE_DICT = dict((c, i) for i, c in enumerate(BASE_LIST))
 
 logging.getLogger('urllib3.connectionpool').setLevel(logging.WARN)
+logging.getLogger('requests.packages.urllib3.connectionpool').setLevel(logging.WARN)
 
 def json_serial(obj):
     """JSON serializer for objects not serializable by default json code"""
@@ -43,14 +43,14 @@ def base_encode(integer, base=BASE_LIST):
     ret = ''
     while integer != 0:
         ret = base[integer % length] + ret
-        integer /= length
+        integer = int(integer / length)
 
     return ret
 
 
 def get_hash(ip):
     m = hashlib.sha256()
-    m.update(ip)
+    m.update(ip.encode())
     h = m.hexdigest()
     h = base_encode(int(h[10:18], 16))
     return h
@@ -104,7 +104,7 @@ def get_running_apps(region):
                 except:
                     pass
 
-            tags = get_tags_dict(i['Tags'])
+            tags = get_tags_dict(i.get('Tags', []))
 
             ins = {
                 'type': 'instance',
@@ -159,7 +159,8 @@ def get_running_apps(region):
 
                 if 'StackVersion' in tags:
                     ins['stack'] = tags['Name']
-                    ins['resource_id'] = tags['aws:cloudformation:logical-id']
+                    if 'aws:cloudformation:logical-id' in tags:
+                        ins['resource_id'] = tags['aws:cloudformation:logical-id']
 
                 assign_properties_from_tags(ins, tags)
 
@@ -196,7 +197,7 @@ def get_running_elbs(region, acc):
     name_chunks = [elb_names[i: i + 20] for i in range(0, len(elb_names), 20)]
     tag_desc_chunks = [elb_client.describe_tags(LoadBalancerNames=names)
                        for names in name_chunks]
-    tags = { d['LoadBalancerName']: d['Tags']
+    tags = { d['LoadBalancerName']: d.get('Tags', [])
              for tag_desc in tag_desc_chunks for d in tag_desc['TagDescriptions'] }
 
     lbs = []
@@ -257,7 +258,7 @@ def get_auto_scaling_groups(region, acc):
         sg['desired_capacity'] = g['DesiredCapacity']
         sg['max_size'] = g['MaxSize']
         sg['min_size'] = g['MinSize']
-        assign_properties_from_tags(sg, g['Tags'])
+        assign_properties_from_tags(sg, g.get('Tags', [])
 
         instance_ids = [i['InstanceId'] for i in g['Instances'] if i['LifecycleState'] == 'InService']
         reservations = ec2_client.describe_instances(InstanceIds=instance_ids)['Reservations']
@@ -398,7 +399,13 @@ def main():
     argp.add_argument('-e', '--entity-service', dest='entityservice')
     argp.add_argument('-r', '--region', dest='region', default=None)
     argp.add_argument('-j', '--json', dest='json', action='store_true')
+    argp.add_argument('--no-oauth2', dest='disable_oauth2', action='store_true', default=False)
     args = argp.parse_args()
+
+    if not args.disable_oauth2:
+        tokens.configure()
+        tokens.manage('uid', ['uid'])
+        tokens.start()
 
     logging.basicConfig(level=logging.INFO)
 
@@ -490,10 +497,16 @@ def main():
             else:
                 auth = None
 
+            headers = {'Content-Type': 'application/json'}
+            if not args.disable_oauth2:
+                token = os.getenv('ZMON_AGENT_TOKEN', tokens.get('uid'))
+                logging.info("Adding oauth2 token to requests {}...{}".format(token[:1], token[-1:]))
+                headers.update({'Authorization': 'Bearer {}'.format(token)})
+
             for e in to_remove:
                 logging.info("removing instance: {}".format(e))
 
-                r = requests.delete(args.entityservice + "{}/".format(e), auth=auth)
+                r = requests.delete(args.entityservice + "{}/".format(e), auth=auth, headers=headers)
 
                 logging.info("...%s", r.status_code)
 
@@ -502,7 +515,7 @@ def main():
 
                 r = requests.put(args.entityservice, auth=auth,
                                  data=json.dumps(entity, default=json_serial),
-                                 headers={'content-type': 'application/json'})
+                                 headers=headers)
 
                 logging.info("...%s", r.status_code)
 
