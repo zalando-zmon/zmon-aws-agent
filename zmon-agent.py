@@ -259,7 +259,7 @@ def get_auto_scaling_groups(region, acc):
         sg['desired_capacity'] = g['DesiredCapacity']
         sg['max_size'] = g['MaxSize']
         sg['min_size'] = g['MinSize']
-        assign_properties_from_tags(sg, g.get('Tags', [])
+        assign_properties_from_tags(sg, g.get('Tags', []))
 
         instance_ids = [i['InstanceId'] for i in g['Instances'] if i['LifecycleState'] == 'InService']
         reservations = ec2_client.describe_instances(InstanceIds=instance_ids)['Reservations']
