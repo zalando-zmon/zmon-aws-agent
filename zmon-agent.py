@@ -162,7 +162,8 @@ def get_running_apps(region):
                     if 'aws:cloudformation:logical-id' in tags:
                         ins['resource_id'] = tags['aws:cloudformation:logical-id']
 
-                assign_properties_from_tags(ins, tags)
+                # `tags` is already a dict, but we need the raw list
+                assign_properties_from_tags(ins, i.get('Tags', []))
 
                 if 'Name' in tags and 'cassandra' in tags['Name'] and 'opscenter' not in tags['Name']:
                     cas = ins.copy()
