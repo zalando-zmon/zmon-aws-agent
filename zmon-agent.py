@@ -480,10 +480,16 @@ def main():
 
             current_entities.append(ia_entity["id"])
 
+            headers = {'Content-Type': 'application/json'}
+            if not args.disable_oauth2:
+                token = os.getenv('ZMON_AGENT_TOKEN', tokens.get('uid'))
+                logging.info("Adding oauth2 token to requests {}...{}".format(token[:1], token[-1:]))
+                headers.update({'Authorization': 'Bearer {}'.format(token)})
+
             # removing all entities
             query = {'infrastructure_account': infrastructure_account, 'region': region, 'created_by': 'agent'}
             r = requests.get(args.entityservice,
-                             params={'query': json.dumps(query)})
+                             params={'query': json.dumps(query)}, headers=headers)
             entities = r.json()
 
             existing_entities = {}
@@ -498,12 +504,6 @@ def main():
                 auth = (os.getenv('zmon_user'), os.getenv('zmon_password', ''))
             else:
                 auth = None
-
-            headers = {'Content-Type': 'application/json'}
-            if not args.disable_oauth2:
-                token = os.getenv('ZMON_AGENT_TOKEN', tokens.get('uid'))
-                logging.info("Adding oauth2 token to requests {}...{}".format(token[:1], token[-1:]))
-                headers.update({'Authorization': 'Bearer {}'.format(token)})
 
             for e in to_remove:
                 logging.info("removing instance: {}".format(e))
