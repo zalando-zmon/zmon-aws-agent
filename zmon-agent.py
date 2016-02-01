@@ -59,11 +59,12 @@ def get_hash(ip):
 def get_tags_dict(tags):
     return { t['Key']: t['Value'] for t in tags }
 
-def assign_stack_name_and_version_from_tags(obj, tags):
-    if 'StackName' in tags:
-        obj['stack_name'] = tags['StackName']
-    if 'StackVersion' in tags:
-        obj['stack_version'] = tags['StackVersion']
+def assign_properties_from_tags(obj, tags):
+    import inflection
+    for tag in tags:
+        key = inflection.underscore(tag['Key'])
+        if key not in obj:
+            obj[key] = tag['Value']
 
 
 def get_running_apps(region):
@@ -161,7 +162,8 @@ def get_running_apps(region):
                     if 'aws:cloudformation:logical-id' in tags:
                         ins['resource_id'] = tags['aws:cloudformation:logical-id']
 
-                assign_stack_name_and_version_from_tags(ins, tags)
+                # `tags` is already a dict, but we need the raw list
+                assign_properties_from_tags(ins, i.get('Tags', []))
 
                 if 'Name' in tags and 'cassandra' in tags['Name'] and 'opscenter' not in tags['Name']:
                     cas = ins.copy()
@@ -196,7 +198,7 @@ def get_running_elbs(region, acc):
     name_chunks = [elb_names[i: i + 20] for i in range(0, len(elb_names), 20)]
     tag_desc_chunks = [elb_client.describe_tags(LoadBalancerNames=names)
                        for names in name_chunks]
-    tags = { d['LoadBalancerName']: get_tags_dict(d.get('Tags', []))
+    tags = { d['LoadBalancerName']: d.get('Tags', [])
              for tag_desc in tag_desc_chunks for d in tag_desc['TagDescriptions'] }
 
     lbs = []
@@ -210,12 +212,10 @@ def get_running_elbs(region, acc):
         lb['host'] = e['DNSName']
         lb['name'] = name
         lb['scheme'] = e['Scheme']
-
-        assign_stack_name_and_version_from_tags(lb, tags[name])
-
         lb['url'] = 'https://{}'.format(lb['host'])
         lb['region'] = region
         lb['members'] = len(e['Instances'])
+        assign_properties_from_tags(lb, tags[name])
         lbs.append(lb)
 
         max_tries = 10
@@ -259,8 +259,7 @@ def get_auto_scaling_groups(region, acc):
         sg['desired_capacity'] = g['DesiredCapacity']
         sg['max_size'] = g['MaxSize']
         sg['min_size'] = g['MinSize']
-
-        assign_stack_name_and_version_from_tags(sg, get_tags_dict(g.get('Tags', [])))
+        assign_properties_from_tags(sg, g.get('Tags', []))
 
         instance_ids = [i['InstanceId'] for i in g['Instances'] if i['LifecycleState'] == 'InService']
         reservations = ec2_client.describe_instances(InstanceIds=instance_ids)['Reservations']
