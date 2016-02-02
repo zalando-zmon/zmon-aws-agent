@@ -176,6 +176,9 @@ def get_running_apps(region):
             else:
                 ins['id'] = '{}-{}[aws:{}:{}]'.format(i['InstanceId'], get_hash(i['PrivateIpAddress'] + ""),
                                                       owner, region)
+                # `tags` is already a dict, but we need the raw list
+                assign_properties_from_tags(ins, i.get('Tags', []))
+
                 if 'Name' in tags:
                     ins['name'] = tags['Name'].replace(" ", "-")
 
