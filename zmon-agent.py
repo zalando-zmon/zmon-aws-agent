@@ -117,6 +117,11 @@ def get_running_apps(region):
                 'infrastructure_account': 'aws:{}'.format(owner),
             }
 
+            if 'PublicIpAddress' in i:
+                public_ip = i.get('PublicIpAddress')
+                if public_ip != "" and public_ip is not None:
+                    ins.update({"public_ip": public_ip})
+
             # for now limit us to instances with valid user data ( senza/taupage )
             if isinstance(user_data, dict) and 'application_id' in user_data:
                 ins['state_reason'] = i['StateTransitionReason']
