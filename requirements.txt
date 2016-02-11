@@ -1,4 +1,4 @@
 boto3>=1.2.1
-stups-tokens>=0.7
+stups-tokens>=1.0.16
 pyyaml
 inflection

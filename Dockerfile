@@ -1,14 +1,10 @@
-FROM zalando/python:3.4.0-4
-
-RUN apt-get install -y supervisor
+FROM registry.opensource.zalan.do/stups/python:3.5.0-5
 
 ADD requirements.txt /requirements.txt
 RUN pip3 install --upgrade -r /requirements.txt
 
 ADD run.sh /run.sh
 ADD start.sh /start.sh
-
-ADD supervisord.conf /etc/supervisord.conf
 
 RUN touch /etc/entity_service_url
 RUN chmod uog+w /etc/entity_service_url
