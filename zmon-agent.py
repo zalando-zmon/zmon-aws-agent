@@ -496,7 +496,7 @@ def main():
             # removing all entities
             query = {'infrastructure_account': infrastructure_account, 'region': region, 'created_by': 'agent'}
             r = requests.get(args.entityservice,
-                             params={'query': json.dumps(query)}, headers=headers)
+                             params={'query': json.dumps(query)}, headers=headers, timeout=10)
             entities = r.json()
 
             existing_entities = {}
@@ -515,7 +515,7 @@ def main():
             for e in to_remove:
                 logging.info("removing instance: {}".format(e))
 
-                r = requests.delete(args.entityservice + "{}/".format(e), auth=auth, headers=headers)
+                r = requests.delete(args.entityservice + "{}/".format(e), auth=auth, headers=headers, timeout=3)
 
                 logging.info("...%s", r.status_code)
 
@@ -524,7 +524,7 @@ def main():
 
                 r = requests.put(args.entityservice, auth=auth,
                                  data=json.dumps(entity, default=json_serial),
-                                 headers=headers)
+                                 headers=headers, timeout=3)
 
                 logging.info("...%s", r.status_code)
 
