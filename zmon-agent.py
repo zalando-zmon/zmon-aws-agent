@@ -99,7 +99,7 @@ def add_traffic_tags_to_entity(entity):
     if 'stack_name' in entity and 'stack_version' in entity:
         weight = get_weight_for_stack(entity['stack_name'], entity['stack_version'])
 
-        if int(weight) > 0:
+        if weight is not None and int(weight) > 0:
             entity.update({'dns_weight': weight, 'dns_traffic': 'true'})
 
 
