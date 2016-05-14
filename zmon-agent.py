@@ -17,8 +17,12 @@ import string
 BASE_LIST = string.digits + string.ascii_letters
 BASE_DICT = dict((c, i) for i, c in enumerate(BASE_LIST))
 
+DNS_ZONE_CACHE = {}
+DNS_RR_CACHE_ZONE = {}
+
 logging.getLogger('urllib3.connectionpool').setLevel(logging.WARN)
 logging.getLogger('requests.packages.urllib3.connectionpool').setLevel(logging.WARN)
+
 
 def json_serial(obj):
     """JSON serializer for objects not serializable by default json code"""
@@ -48,6 +52,58 @@ def base_encode(integer, base=BASE_LIST):
     return ret
 
 
+def populate_dns_data():
+    route53 = boto3.client('route53')
+    result = route53.list_hosted_zones()
+    zones = result['HostedZones']
+    while result.get('IsTruncated', False):
+        recordfilter = {'Marker': result['NextMarker']}
+        result = route53.list_hosted_zones(**recordfilter)
+        zones.extend(result['HostedZones'])
+    if len(zones) == 0:
+        raise ValueError('No Zones are configured!')
+    for zone in zones:
+        DNS_ZONE_CACHE[zone['Name']] = zone
+
+        result = route53.list_resource_record_sets(HostedZoneId=zone['Id'])
+        records = result['ResourceRecordSets']
+        while result['IsTruncated']:
+            recordfilter = {'HostedZoneId': zone['Id'],
+                            'StartRecordName': result['NextRecordName'],
+                            'StartRecordType': result['NextRecordType']
+                            }
+            if result.get('NextRecordIdentifier'):
+                recordfilter['StartRecordIdentifier'] = result.get('NextRecordIdentifier')
+
+            result = route53.list_resource_record_sets(**recordfilter)
+            records.extend(result['ResourceRecordSets'])
+
+
+        DNS_RR_CACHE_ZONE[zone['Name']] = list(filter(lambda x: x['Type']=='CNAME', records))
+
+
+def get_weight_for_stack(stack_name, stack_version):
+    if len(DNS_ZONE_CACHE.keys()) != 1:
+        logging.info("Multiple hosted zones not supported - skipping weight")
+        return None
+
+    zone = list(DNS_ZONE_CACHE.keys())[0]
+
+    records = list(filter(lambda x: x['SetIdentifier'] == stack_name+"_"+stack_version , DNS_RR_CACHE_ZONE[zone]))
+    if len(records) != 1:
+        return None
+
+    return records[0]['Weight']
+
+
+def add_traffic_tags_to_entity(entity):
+    if 'stack_name' in entity and 'stack_version' in entity:
+        weight = get_weight_for_stack(entity['stack_name'], entity['stack_version'])
+
+        if int(weight) > 0:
+            entity.update({'dns_weight' : weight, 'dns_traffic' : 'true'})
+
+
 def get_hash(ip):
     m = hashlib.sha256()
     m.update(ip.encode())
@@ -58,6 +114,7 @@ def get_hash(ip):
 
 def get_tags_dict(tags):
     return { t['Key']: t['Value'] for t in tags }
+
 
 def assign_properties_from_tags(obj, tags):
     import inflection
@@ -170,6 +227,8 @@ def get_running_apps(region):
                 # `tags` is already a dict, but we need the raw list
                 assign_properties_from_tags(ins, i.get('Tags', []))
 
+                add_traffic_tags_to_entity(ins)
+
                 if 'Name' in tags and 'cassandra' in tags['Name'] and 'opscenter' not in tags['Name']:
                     cas = ins.copy()
                     cas['type'] = 'cassandra'
@@ -224,6 +283,7 @@ def get_running_elbs(region, acc):
         lb['region'] = region
         lb['members'] = len(e['Instances'])
         assign_properties_from_tags(lb, tags[name])
+        add_traffic_tags_to_entity(lb)
         lbs.append(lb)
 
         max_tries = 10
@@ -268,6 +328,7 @@ def get_auto_scaling_groups(region, acc):
         sg['max_size'] = g['MaxSize']
         sg['min_size'] = g['MinSize']
         assign_properties_from_tags(sg, g.get('Tags', []))
+        add_traffic_tags_to_entity(sg)
 
         instance_ids = [i['InstanceId'] for i in g['Instances'] if i['LifecycleState'] == 'InService']
         reservations = ec2_client.describe_instances(InstanceIds=instance_ids)['Reservations']
@@ -432,6 +493,9 @@ def main():
     logging.info("Using region: {}".format(region))
 
     logging.info("Entity service url: %s", args.entityservice)
+
+    logging.info("Reading DNS data for hosted zones")
+    populate_dns_data()
 
     apps = get_running_apps(region)
     if len(apps) > 0:
