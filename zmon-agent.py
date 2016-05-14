@@ -88,7 +88,7 @@ def get_weight_for_stack(stack_name, stack_version):
 
     zone = list(DNS_ZONE_CACHE.keys())[0]
 
-    records = list(filter(lambda x: x['SetIdentifier'] == stack_name + "_" + stack_version, DNS_RR_CACHE_ZONE[zone]))
+    records = list(filter(lambda x: x['SetIdentifier'] == stack_name + "-" + stack_version, DNS_RR_CACHE_ZONE[zone]))
     if len(records) != 1:
         return None
 
