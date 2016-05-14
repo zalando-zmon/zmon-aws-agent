@@ -78,8 +78,7 @@ def populate_dns_data():
             result = route53.list_resource_record_sets(**recordfilter)
             records.extend(result['ResourceRecordSets'])
 
-
-        DNS_RR_CACHE_ZONE[zone['Name']] = list(filter(lambda x: x['Type']=='CNAME', records))
+        DNS_RR_CACHE_ZONE[zone['Name']] = list(filter(lambda x: x['Type'] == 'CNAME', records))
 
 
 def get_weight_for_stack(stack_name, stack_version):
@@ -89,7 +88,7 @@ def get_weight_for_stack(stack_name, stack_version):
 
     zone = list(DNS_ZONE_CACHE.keys())[0]
 
-    records = list(filter(lambda x: x['SetIdentifier'] == stack_name+"_"+stack_version , DNS_RR_CACHE_ZONE[zone]))
+    records = list(filter(lambda x: x['SetIdentifier'] == stack_name + "_" + stack_version, DNS_RR_CACHE_ZONE[zone]))
     if len(records) != 1:
         return None
 
@@ -101,7 +100,7 @@ def add_traffic_tags_to_entity(entity):
         weight = get_weight_for_stack(entity['stack_name'], entity['stack_version'])
 
         if int(weight) > 0:
-            entity.update({'dns_weight' : weight, 'dns_traffic' : 'true'})
+            entity.update({'dns_weight': weight, 'dns_traffic': 'true'})
 
 
 def get_hash(ip):
