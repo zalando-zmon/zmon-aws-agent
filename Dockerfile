@@ -1,4 +1,4 @@
-FROM registry.opensource.zalan.do/stups/python:3.5.0-7
+FROM registry.opensource.zalan.do/stups/python:3.5.1-21
 
 ADD requirements.txt /requirements.txt
 RUN pip3 install --upgrade -r /requirements.txt
