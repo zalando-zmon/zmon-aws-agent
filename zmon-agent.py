@@ -22,6 +22,9 @@ DNS_RR_CACHE_ZONE = {}
 
 logging.getLogger('urllib3.connectionpool').setLevel(logging.WARN)
 logging.getLogger('requests.packages.urllib3.connectionpool').setLevel(logging.WARN)
+logging.getLogger('botocore.vendored.requests.packages').setLevel(logging.WARN)
+
+logger = logging.getLogger('zmon-aws-agent')
 
 
 def json_serial(obj):
@@ -83,7 +86,7 @@ def populate_dns_data():
 
 def get_weight_for_stack(stack_name, stack_version):
     if len(DNS_ZONE_CACHE.keys()) != 1:
-        logging.info("Multiple hosted zones not supported - skipping weight")
+        logger.info("Multiple hosted zones not supported - skipping weight")
         return None
 
     zone = list(DNS_ZONE_CACHE.keys())[0]
@@ -112,7 +115,7 @@ def get_hash(ip):
 
 
 def get_tags_dict(tags):
-    return { t['Key']: t['Value'] for t in tags }
+    return {t['Key']: t['Value'] for t in tags}
 
 
 def assign_properties_from_tags(obj, tags):
@@ -152,7 +155,7 @@ def get_running_apps(region):
                 except ClientError as e:
                     if e.response['Error']['Code'] == "Throttling":
                         if n < max_tries - 1:
-                            logging.info("Throttling AWS API requests...")
+                            logger.info("Throttling AWS API requests...")
                             time.sleep(sleep_time)
                             sleep_time = min(30, sleep_time * 1.5)
                             continue
@@ -192,7 +195,7 @@ def get_running_apps(region):
                     except ClientError as e:
                         if e.response['Error']['Code'] == "Throttling":
                             if n < max_tries - 1:
-                                logging.info("Throttling AWS API requests...")
+                                logger.info("Throttling AWS API requests...")
                                 time.sleep(sleep_time)
                                 sleep_time = min(30, sleep_time * 1.5)
                                 continue
@@ -264,8 +267,8 @@ def get_running_elbs(region, acc):
     name_chunks = [elb_names[i: i + 20] for i in range(0, len(elb_names), 20)]
     tag_desc_chunks = [elb_client.describe_tags(LoadBalancerNames=names)
                        for names in name_chunks]
-    tags = { d['LoadBalancerName']: d.get('Tags', [])
-             for tag_desc in tag_desc_chunks for d in tag_desc['TagDescriptions'] }
+    tags = {d['LoadBalancerName']: d.get('Tags', [])
+            for tag_desc in tag_desc_chunks for d in tag_desc['TagDescriptions']}
 
     lbs = []
 
@@ -398,7 +401,7 @@ def get_dynamodb_tables(region, acc):
             }
             tables.append(table)
     except Exception as e:
-        logging.info("Got exception while listing dynamodb tables, IAM role not allowed to access? {}".format(e))
+        logger.info("Got exception while listing dynamodb tables, IAM role not allowed to access? {}".format(e))
         pass
 
     return tables
@@ -458,7 +461,7 @@ def get_rds_instances(region, acc):
             rds_instances.append(db)
 
     except Exception:
-        logging.exception('Failed to get RDS instance')
+        logger.exception('Failed to get RDS instance')
 
     return rds_instances
 
@@ -479,21 +482,21 @@ def main():
     logging.basicConfig(level=logging.INFO)
 
     if not args.region:
-        logging.info("Trying to figure out region...")
+        logger.info("Trying to figure out region..")
         try:
             response = requests.get('http://169.254.169.254/latest/meta-data/placement/availability-zone', timeout=2)
         except:
-            logging.error("Region was not specified as a parameter and can not be fetched from instance meta-data!")
+            logger.error("Region was not specified as a parameter and can not be fetched from instance meta-data!")
             raise
         region = response.text[:-1]
     else:
         region = args.region
 
-    logging.info("Using region: {}".format(region))
+    logger.info("Using region: {}".format(region))
 
-    logging.info("Entity service url: %s", args.entityservice)
+    logger.info("Entity service URL: %s", args.entityservice)
 
-    logging.info("Reading DNS data for hosted zones")
+    logger.info("Reading DNS data for hosted zones")
     populate_dns_data()
 
     apps = get_running_apps(region)
@@ -553,7 +556,7 @@ def main():
             headers = {'Content-Type': 'application/json'}
             if not args.disable_oauth2:
                 token = os.getenv('ZMON_AGENT_TOKEN', tokens.get('uid'))
-                logging.info("Adding oauth2 token to requests {}...{}".format(token[:1], token[-1:]))
+                logger.info("Adding oauth2 token to requests {}...{}".format(token[:1], token[-1:]))
                 headers.update({'Authorization': 'Bearer {}'.format(token)})
 
             # removing all entities
@@ -567,7 +570,7 @@ def main():
             to_remove = []
             for e in entities:
                 existing_entities[e['id']] = e
-                if not e["id"] in current_entities:
+                if e["id"] not in current_entities:
                     to_remove.append(e["id"])
 
             if os.getenv('zmon_user'):
@@ -576,20 +579,20 @@ def main():
                 auth = None
 
             for e in to_remove:
-                logging.info("removing instance: {}".format(e))
+                logger.info("Removing entity: {}".format(e))
 
                 r = requests.delete(args.entityservice + "{}/".format(e), auth=auth, headers=headers, timeout=3)
-
-                logging.info("...%s", r.status_code)
+                if not r.ok:
+                    logger.warn("Got HTTP status code %s", r.status_code)
 
             def put_entity(entity_type, entity):
-                logging.info("Adding {} entity: {}".format(entity_type, entity['id']))
+                logger.info("Adding {} entity: {}".format(entity_type, entity['id']))
 
                 r = requests.put(args.entityservice, auth=auth,
                                  data=json.dumps(entity, default=json_serial),
                                  headers=headers, timeout=3)
-
-                logging.info("...%s", r.status_code)
+                if not r.ok:
+                    logger.warn("Got HTTP status code %s", r.status_code)
 
             put_entity('LOCAL', ia_entity)
 
