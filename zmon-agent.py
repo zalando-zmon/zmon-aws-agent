@@ -81,7 +81,8 @@ def populate_dns_data():
             result = route53.list_resource_record_sets(**recordfilter)
             records.extend(result['ResourceRecordSets'])
 
-        DNS_RR_CACHE_ZONE[zone['Name']] = list(filter(lambda x: (x['Type'] == 'CNAME') and ('SetIdentifier' in x), records))
+        DNS_RR_CACHE_ZONE[zone['Name']] = list(
+            filter(lambda x: (x['Type'] == 'CNAME') and ('SetIdentifier' in x), records))
 
 
 def get_weight_for_stack(stack_name, stack_version):
