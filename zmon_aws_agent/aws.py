@@ -128,7 +128,10 @@ def assign_properties_from_tags(obj, tags):
 
 def get_running_apps(region):
     aws_client = boto3.client('ec2', region_name=region)
-    rs = aws_client.describe_instances()['Reservations']
+
+    paginator = aws_client.get_paginator('describe_instances')
+    rs = paginator.paginate(PaginationConfig={'MaxItems': 1000}).build_full_result()['Reservations']
+
     result = []
 
     for r in rs:
@@ -255,7 +258,9 @@ def get_running_apps(region):
 
 def get_running_elbs(region, acc):
     elb_client = boto3.client('elb', region_name=region)
-    elbs = elb_client.describe_load_balancers()['LoadBalancerDescriptions']
+
+    paginator = elb_client.get_paginator('describe_load_balancers')
+    elbs = paginator.paginate(PaginationConfig={'MaxItems': 1000}).build_full_result()['LoadBalancerDescriptions']
 
     # get all the tags and cache them in a dict
     elb_names = [e['LoadBalancerName'] for e in elbs]
@@ -318,9 +323,13 @@ def get_running_elbs(region, acc):
 
 def get_auto_scaling_groups(region, acc):
     groups = []
+
     as_client = boto3.client('autoscaling', region_name=region)
     ec2_client = boto3.client('ec2', region_name=region)
-    asgs = as_client.describe_auto_scaling_groups()['AutoScalingGroups']
+
+    paginator = as_client.get_paginator('describe_auto_scaling_groups')
+    asgs = paginator.paginate(PaginationConfig={'MaxItems': 1000}).build_full_result()['AutoScalingGroups']
+
     for g in asgs:
         sg = {'type': 'asg', 'infrastructure_account': acc, 'region': region, 'created_by': 'agent'}
         sg['id'] = 'asg-{}[{}:{}]'.format(g['AutoScalingGroupName'], acc, region)
@@ -333,7 +342,10 @@ def get_auto_scaling_groups(region, acc):
         add_traffic_tags_to_entity(sg)
 
         instance_ids = [i['InstanceId'] for i in g['Instances'] if i['LifecycleState'] == 'InService']
-        reservations = ec2_client.describe_instances(InstanceIds=instance_ids)['Reservations']
+
+        ec2_paginator = ec2_client.get_paginator('describe_instances')
+        reservations = ec2_paginator.paginate(InstanceIds=instance_ids).build_full_result()['Reservations']
+
         sg['instances'] = []
         for r in reservations:
             for i in r['Instances']:
@@ -349,9 +361,14 @@ def get_auto_scaling_groups(region, acc):
 
 def get_elasticache_nodes(region, acc):
     elc = boto3.client('elasticache', region_name=region)
+    paginator = elc.get_paginator('describe_cache_clusters')
+
+    elcs = paginator.paginate(
+        ShowCacheNodeInfo=True, PaginationConfig={'MaxItems': 1000}).build_full_result()['CacheClusters']
+
     nodes = []
 
-    for c in elc.describe_cache_clusters(ShowCacheNodeInfo=True)['CacheClusters']:
+    for c in elcs:
         if c['CacheClusterStatus'] not in ['available', 'modifying', 'snapshotting']:
             continue
 
@@ -389,9 +406,13 @@ def get_dynamodb_tables(region, acc):
     # catch exception here, original agent policy does not allow scanning dynamodb
     try:
         ddb = boto3.client('dynamodb', region_name=region)
+
+        paginator = ddb.get_paginator('list_tables')
+        ts = paginator.paginate(PaginationConfig={'MaxItems': 1000}).build_full_result()['TableNames']
+
         tables = []
 
-        for tn in ddb.list_tables()['TableNames']:
+        for tn in ts:
             t = ddb.describe_table(TableName=tn)['Table']
 
             if t['TableStatus'] not in ['ACTIVE', 'UPDATING']:
@@ -415,41 +436,14 @@ def get_dynamodb_tables(region, acc):
     return tables
 
 
-def get_account_alias(region):
-    try:
-        iam_client = boto3.client('iam', region_name=region)
-        resp = iam_client.list_account_aliases()
-        return resp['AccountAliases'][0]
-    except:
-        return None
-
-
-def get_apps_from_entities(instances, account, region):
-    apps = set()
-    for i in instances:
-        if 'application_id' in i:
-            apps.add(i['application_id'])
-
-    applications = []
-    for a in apps:
-        applications.append({
-            'id': 'a-{}[{}:{}]'.format(a, account, region),
-            'application_id': a,
-            'region': region,
-            'infrastructure_account': account,
-            'type': 'application',
-            'created_by': 'agent',
-        })
-
-    return applications
-
-
 def get_rds_instances(region, acc):
     rds_instances = []
 
     try:
         rds_client = boto3.client('rds', region_name=region)
-        instances = rds_client.describe_db_instances()
+
+        paginator = rds_client.get_paginator('describe_db_instances')
+        instances = paginator.paginate(PaginationConfig={'MaxItems': 1000}).build_full_result()
 
         for i in instances['DBInstances']:
 
@@ -481,3 +475,32 @@ def get_rds_instances(region, acc):
         logger.exception('Failed to get RDS instance')
 
     return rds_instances
+
+
+def get_account_alias(region):
+    try:
+        iam_client = boto3.client('iam', region_name=region)
+        resp = iam_client.list_account_aliases()
+        return resp['AccountAliases'][0]
+    except:
+        return None
+
+
+def get_apps_from_entities(instances, account, region):
+    apps = set()
+    for i in instances:
+        if 'application_id' in i:
+            apps.add(i['application_id'])
+
+    applications = []
+    for a in apps:
+        applications.append({
+            'id': 'a-{}[{}:{}]'.format(a, account, region),
+            'application_id': a,
+            'region': region,
+            'infrastructure_account': account,
+            'type': 'application',
+            'created_by': 'agent',
+        })
+
+    return applications
