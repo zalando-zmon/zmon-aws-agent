@@ -1,7 +1,6 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
-import os
 import argparse
 import logging
 import json
@@ -22,7 +21,7 @@ logger = logging.getLogger('zmon-aws-agent')
 
 def get_existing_ids(existing_entities):
     """Return existing entities IDs based on a condition to facilitate entity update path."""
-    return [entity['id'] for entity in existing_entities]
+    return set({entity['id'] for entity in existing_entities})
 
 
 def remove_missing_entities(existing_ids, current_ids, zmon_client, json=False):
@@ -61,7 +60,8 @@ def add_new_entities(all_current_entities, existing_entities, zmon_client, json=
                 logger.info(
                     'Adding new {} entity with ID: {}'.format(entity['type'], entity['id']))
                 resp = zmon_client.add_entity(entity)
-                logger.info('ZMON response ... {}'.format(resp.status_code))
+                if not resp.ok:
+                    logger.error('ZMON error response ... {}'.format(resp.status_code))
         except:
             logger.exception('Failed to add entity!')
 
@@ -140,7 +140,7 @@ def main():
         current_entities = elbs + scaling_groups + apps + application_entities + rds + elasticaches + dynamodbs
 
         # 3. ZMON entities
-        token = None if args.disable_oauth2 else os.getenv('ZMON_AGENT_TOKEN', tokens.get('uid'))
+        token = None if args.disable_oauth2 else tokens.get('uid')
         zmon_client = ZMon(args.entityservice, token=token)
 
         query = {'infrastructure_account': infrastructure_account, 'region': region, 'created_by': 'agent'}
@@ -148,7 +148,7 @@ def main():
 
         # 4. Removing misssing entities
         existing_ids = get_existing_ids(entities)
-        current_entities_ids = [e['id'] for e in current_entities]
+        current_entities_ids = set({e['id'] for e in current_entities})
 
         to_be_removed = remove_missing_entities(existing_ids, current_entities_ids, zmon_client, json=args.json)
 

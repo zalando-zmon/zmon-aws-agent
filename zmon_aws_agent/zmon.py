@@ -64,9 +64,9 @@ class ZMon(object):
         :return: Response object.
         """
         try:
-            logger.debug('Adding new enitity: {} ...'.format(entity['id']))
+            logger.debug('Adding new entity: {} ...'.format(entity['id']))
 
-            resp = self.session.put(self.url, json=entity)
+            resp = self.session.put(self.url, json=entity, timeout=self.timeout)
             resp.raise_for_status()
 
             return resp
@@ -84,9 +84,9 @@ class ZMon(object):
         :rtype: bool
         """
         try:
-            logger.debug('Removing existing enitity: {} ...'.format(entity_id))
+            logger.debug('Removing existing entity: {} ...'.format(entity_id))
 
-            resp = self.session.delete(self.entity_url(entity_id))
+            resp = self.session.delete(self.entity_url(entity_id), timeout=self.timeout)
             resp.raise_for_status()
 
             return resp.text == '1'
