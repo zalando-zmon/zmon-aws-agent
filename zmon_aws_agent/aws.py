@@ -1,18 +1,17 @@
-import os
-import argparse
-import boto3
-from botocore.exceptions import ClientError
 import logging
-import json
 import base64
-import yaml
-import requests
 import hashlib
 import time
-import tokens
+import inflection
+import string
 
 from datetime import datetime
-import string
+
+import boto3
+import yaml
+
+from botocore.exceptions import ClientError
+
 
 BASE_LIST = string.digits + string.ascii_letters
 BASE_DICT = dict((c, i) for i, c in enumerate(BASE_LIST))
@@ -20,11 +19,7 @@ BASE_DICT = dict((c, i) for i, c in enumerate(BASE_LIST))
 DNS_ZONE_CACHE = {}
 DNS_RR_CACHE_ZONE = {}
 
-logging.getLogger('urllib3.connectionpool').setLevel(logging.WARN)
-logging.getLogger('requests.packages.urllib3.connectionpool').setLevel(logging.WARN)
-logging.getLogger('botocore.vendored.requests.packages').setLevel(logging.WARN)
-
-logger = logging.getLogger('zmon-aws-agent')
+logger = logging.getLogger(__name__)
 
 
 def json_serial(obj):
@@ -33,7 +28,7 @@ def json_serial(obj):
     if isinstance(obj, datetime):
         serial = obj.isoformat()
         return serial
-    raise TypeError("Type not serializable")
+    raise TypeError('Type not serializable')
 
 
 def base_decode(string, reverse_base=BASE_DICT):
@@ -59,22 +54,27 @@ def populate_dns_data():
     route53 = boto3.client('route53')
     result = route53.list_hosted_zones()
     zones = result['HostedZones']
+
     while result.get('IsTruncated', False):
         recordfilter = {'Marker': result['NextMarker']}
         result = route53.list_hosted_zones(**recordfilter)
         zones.extend(result['HostedZones'])
+
     if len(zones) == 0:
         raise ValueError('No Zones are configured!')
+
     for zone in zones:
         DNS_ZONE_CACHE[zone['Name']] = zone
 
         result = route53.list_resource_record_sets(HostedZoneId=zone['Id'])
         records = result['ResourceRecordSets']
+
         while result['IsTruncated']:
-            recordfilter = {'HostedZoneId': zone['Id'],
-                            'StartRecordName': result['NextRecordName'],
-                            'StartRecordType': result['NextRecordType']
-                            }
+            recordfilter = {
+                'HostedZoneId': zone['Id'],
+                'StartRecordName': result['NextRecordName'],
+                'StartRecordType': result['NextRecordType']
+            }
             if result.get('NextRecordIdentifier'):
                 recordfilter['StartRecordIdentifier'] = result.get('NextRecordIdentifier')
 
@@ -87,12 +87,12 @@ def populate_dns_data():
 
 def get_weight_for_stack(stack_name, stack_version):
     if len(DNS_ZONE_CACHE.keys()) != 1:
-        logger.info("Multiple hosted zones not supported - skipping weight")
+        logger.info('Multiple hosted zones not supported - skipping weight')
         return None
 
     zone = list(DNS_ZONE_CACHE.keys())[0]
 
-    records = list(filter(lambda x: x['SetIdentifier'] == stack_name + "-" + stack_version, DNS_RR_CACHE_ZONE[zone]))
+    records = list(filter(lambda x: x['SetIdentifier'] == stack_name + '-' + stack_version, DNS_RR_CACHE_ZONE[zone]))
     if len(records) != 1:
         return None
 
@@ -120,7 +120,6 @@ def get_tags_dict(tags):
 
 
 def assign_properties_from_tags(obj, tags):
-    import inflection
     for tag in tags:
         key = inflection.underscore(tag['Key'])
         if key not in obj:
@@ -154,9 +153,9 @@ def get_running_apps(region):
                     user_data = yaml.safe_load(user_data)
                     break
                 except ClientError as e:
-                    if e.response['Error']['Code'] == "Throttling":
+                    if e.response['Error']['Code'] == 'Throttling':
                         if n < max_tries - 1:
-                            logger.info("Throttling AWS API requests...")
+                            logger.info('Throttling AWS API requests...')
                             time.sleep(sleep_time)
                             sleep_time = min(30, sleep_time * 1.5)
                             continue
@@ -179,8 +178,8 @@ def get_running_apps(region):
 
             if 'PublicIpAddress' in i:
                 public_ip = i.get('PublicIpAddress')
-                if public_ip != "" and public_ip is not None:
-                    ins.update({"public_ip": public_ip})
+                if public_ip != '' and public_ip is not None:
+                    ins.update({'public_ip': public_ip})
 
             # for now limit us to instances with valid user data ( senza/taupage )
             if isinstance(user_data, dict) and 'application_id' in user_data:
@@ -194,9 +193,9 @@ def get_running_apps(region):
                         instance_status_resp = aws_client.describe_instance_status(InstanceIds=[i['InstanceId']])
                         break
                     except ClientError as e:
-                        if e.response['Error']['Code'] == "Throttling":
+                        if e.response['Error']['Code'] == 'Throttling':
                             if n < max_tries - 1:
-                                logger.info("Throttling AWS API requests...")
+                                logger.info('Throttling AWS API requests...')
                                 time.sleep(sleep_time)
                                 sleep_time = min(30, sleep_time * 1.5)
                                 continue
@@ -209,7 +208,7 @@ def get_running_apps(region):
 
                 ins['id'] = '{}-{}-{}[aws:{}:{}]'.format(user_data['application_id'],
                                                          user_data['application_version'],
-                                                         get_hash(i['PrivateIpAddress'] + ""),
+                                                         get_hash(i['PrivateIpAddress'] + ''),
                                                          owner,
                                                          region)
 
@@ -235,19 +234,19 @@ def get_running_apps(region):
                 if 'Name' in tags and 'cassandra' in tags['Name'] and 'opscenter' not in tags['Name']:
                     cas = ins.copy()
                     cas['type'] = 'cassandra'
-                    cas['id'] = "cas-{}".format(cas['id'])
+                    cas['id'] = 'cas-{}'.format(cas['id'])
                     result.append(cas)
 
                 result.append(ins)
 
             else:
-                ins['id'] = '{}-{}[aws:{}:{}]'.format(i['InstanceId'], get_hash(i['PrivateIpAddress'] + ""),
+                ins['id'] = '{}-{}[aws:{}:{}]'.format(i['InstanceId'], get_hash(i['PrivateIpAddress'] + ''),
                                                       owner, region)
                 # `tags` is already a dict, but we need the raw list
                 assign_properties_from_tags(ins, i.get('Tags', []))
 
                 if 'Name' in tags:
-                    ins['name'] = tags['Name'].replace(" ", "-")
+                    ins['name'] = tags['Name'].replace(' ', '-')
 
                 result.append(ins)
 
@@ -297,7 +296,7 @@ def get_running_elbs(region, acc):
                 ihealth = elb_client.describe_instance_health(LoadBalancerName=e['LoadBalancerName'])['InstanceStates']
                 break
             except ClientError as e:
-                if e.response['Error']['Code'] == "Throttling":
+                if e.response['Error']['Code'] == 'Throttling':
                     if i < max_tries - 1:
                         # Try again
                         time.sleep(sleep_time)
@@ -351,32 +350,36 @@ def get_auto_scaling_groups(region, acc):
 def get_elasticache_nodes(region, acc):
     elc = boto3.client('elasticache', region_name=region)
     nodes = []
+
     for c in elc.describe_cache_clusters(ShowCacheNodeInfo=True)['CacheClusters']:
-        if c["CacheClusterStatus"] not in ["available", "modifying", "snapshotting"]:
+        if c['CacheClusterStatus'] not in ['available', 'modifying', 'snapshotting']:
             continue
+
         for n in c['CacheNodes']:
-            if n["CacheNodeStatus"] != "available":
+            if n['CacheNodeStatus'] != 'available':
                 continue
 
             node = {
-                "id": "elc-{}-{}[{}:{}]".format(c["CacheClusterId"], n["CacheNodeId"], acc, region),
-                "region": region,
-                "created_by": "agent",
-                "infrastructure_account": "{}".format(acc),
-                "type": "elc",
-                "cluster_id": c["CacheClusterId"],
-                "node_id": n["CacheNodeId"],
-                "engine": c["Engine"],
-                "version": c["EngineVersion"],
-                "cluster_num_nodes": c["NumCacheNodes"],
-                "host": n["Endpoint"]["Address"],
-                "port": n["Endpoint"]["Port"],
-                "instance_type": c["CacheNodeType"],
+                'id': 'elc-{}-{}[{}:{}]'.format(c['CacheClusterId'], n['CacheNodeId'], acc, region),
+                'region': region,
+                'created_by': 'agent',
+                'infrastructure_account': '{}'.format(acc),
+                'type': 'elc',
+                'cluster_id': c['CacheClusterId'],
+                'node_id': n['CacheNodeId'],
+                'engine': c['Engine'],
+                'version': c['EngineVersion'],
+                'cluster_num_nodes': c['NumCacheNodes'],
+                'host': n['Endpoint']['Address'],
+                'port': n['Endpoint']['Port'],
+                'instance_type': c['CacheNodeType'],
             }
 
-            if "ReplicationGroupId" in c:
-                node["replication_group"] = c["ReplicationGroupId"]
+            if 'ReplicationGroupId' in c:
+                node['replication_group'] = c['ReplicationGroupId']
+
             nodes.append(node)
+
     return nodes
 
 
@@ -387,22 +390,26 @@ def get_dynamodb_tables(region, acc):
     try:
         ddb = boto3.client('dynamodb', region_name=region)
         tables = []
+
         for tn in ddb.list_tables()['TableNames']:
             t = ddb.describe_table(TableName=tn)['Table']
+
             if t['TableStatus'] not in ['ACTIVE', 'UPDATING']:
                 continue
+
             table = {
-                "id": "dynamodb-{}[{}:{}]".format(t["TableName"], acc, region),
-                "region": region,
-                "created_by": "agent",
-                "infrastructure_account": "{}".format(acc),
-                "type": "dynamodb",
-                "name": "{}".format(t["TableName"]),
-                "arn": "{}".format(t["TableArn"])
+                'id': 'dynamodb-{}[{}:{}]'.format(t['TableName'], acc, region),
+                'region': region,
+                'created_by': 'agent',
+                'infrastructure_account': '{}'.format(acc),
+                'type': 'dynamodb',
+                'name': '{}'.format(t['TableName']),
+                'arn': '{}'.format(t['TableArn'])
             }
+
             tables.append(table)
-    except Exception as e:
-        logger.info("Got exception while listing dynamodb tables, IAM role not allowed to access? {}".format(e))
+    except:
+        logger.exception('Got exception while listing dynamodb tables, IAM role not allowed to access?')
         pass
 
     return tables
@@ -425,8 +432,14 @@ def get_apps_from_entities(instances, account, region):
 
     applications = []
     for a in apps:
-        applications.append({"id": "a-{}[{}:{}]".format(a, account, region), "application_id": a, "region": region,
-                             "infrastructure_account": account, "type": "application", "created_by": "agent"})
+        applications.append({
+            'id': 'a-{}[{}:{}]'.format(a, account, region),
+            'application_id': a,
+            'region': region,
+            'infrastructure_account': account,
+            'type': 'application',
+            'created_by': 'agent',
+        })
 
     return applications
 
@@ -438,26 +451,29 @@ def get_rds_instances(region, acc):
         rds_client = boto3.client('rds', region_name=region)
         instances = rds_client.describe_db_instances()
 
-        for i in instances["DBInstances"]:
+        for i in instances['DBInstances']:
 
-            db = {"id": "rds-{}[{}]".format(i["DBInstanceIdentifier"], acc), "created_by": "agent",
-                  "infrastructure_account": "{}".format(acc)}
+            db = {
+                'id': 'rds-{}[{}]'.format(i['DBInstanceIdentifier'], acc),
+                'created_by': 'agent',
+                'infrastructure_account': '{}'.format(acc)
+            }
 
-            db["type"] = "database"
-            db["engine"] = i["Engine"]
-            db["port"] = i["Endpoint"]["Port"]
-            db["host"] = i["Endpoint"]["Address"]
-            db["name"] = i["DBInstanceIdentifier"]
-            db["region"] = region
+            db['type'] = 'database'
+            db['engine'] = i['Engine']
+            db['port'] = i['Endpoint']['Port']
+            db['host'] = i['Endpoint']['Address']
+            db['name'] = i['DBInstanceIdentifier']
+            db['region'] = region
 
-            if "EngineVersion" in i:
-                db["version"] = i["EngineVersion"]
+            if 'EngineVersion' in i:
+                db['version'] = i['EngineVersion']
 
-            cluster_name = db["name"]
-            if i.get("DBName"):
-                cluster_name = i["DBName"]
+            cluster_name = db['name']
+            if i.get('DBName'):
+                cluster_name = i['DBName']
 
-            db["shards"] = {cluster_name: "{}:{}/{}".format(db["host"], db["port"], cluster_name)}
+            db['shards'] = {cluster_name: '{}:{}/{}'.format(db['host'], db['port'], cluster_name)}
 
             rds_instances.append(db)
 
@@ -465,165 +481,3 @@ def get_rds_instances(region, acc):
         logger.exception('Failed to get RDS instance')
 
     return rds_instances
-
-
-def main():
-    argp = argparse.ArgumentParser(description='ZMon AWS Agent')
-    argp.add_argument('-e', '--entity-service', dest='entityservice')
-    argp.add_argument('-r', '--region', dest='region', default=None)
-    argp.add_argument('-j', '--json', dest='json', action='store_true')
-    argp.add_argument('--no-oauth2', dest='disable_oauth2', action='store_true', default=False)
-    args = argp.parse_args()
-
-    if not args.disable_oauth2:
-        tokens.configure()
-        tokens.manage('uid', ['uid'])
-        tokens.start()
-
-    logging.basicConfig(level=logging.INFO)
-
-    if not args.region:
-        logger.info("Trying to figure out region..")
-        try:
-            response = requests.get('http://169.254.169.254/latest/meta-data/placement/availability-zone', timeout=2)
-        except:
-            logger.error("Region was not specified as a parameter and can not be fetched from instance meta-data!")
-            raise
-        region = response.text[:-1]
-    else:
-        region = args.region
-
-    logger.info("Using region: {}".format(region))
-
-    logger.info("Entity service URL: %s", args.entityservice)
-
-    logger.info("Reading DNS data for hosted zones")
-    populate_dns_data()
-
-    apps = get_running_apps(region)
-    if len(apps) > 0:
-        infrastructure_account = apps[0]['infrastructure_account']
-        elbs = get_running_elbs(region, infrastructure_account)
-        scaling_groups = get_auto_scaling_groups(region, infrastructure_account)
-        rds = get_rds_instances(region, infrastructure_account)
-        elasticaches = get_elasticache_nodes(region, infrastructure_account)
-        dynamodbs = get_dynamodb_tables(region, infrastructure_account)
-    else:
-        elbs = []
-        scaling_groups = []
-        rds = []
-
-    if args.json:
-        d = {'apps': apps, 'elbs': elbs, 'rds': rds, 'elc': elasticaches, 'dynamodb': dynamodbs}
-        print(json.dumps(d))
-    else:
-
-        if infrastructure_account is not None:
-            account_alias = get_account_alias(region)
-            ia_entity = {"type": "local",
-                         "infrastructure_account": infrastructure_account,
-                         "account_alias": account_alias,
-                         "region": region,
-                         "id": "aws-ac[{}:{}]".format(infrastructure_account, region),
-                         "created_by": "agent"}
-
-            application_entities = get_apps_from_entities(apps, infrastructure_account, region)
-
-            current_entities = []
-
-            for e in elbs:
-                current_entities.append(e["id"])
-
-            for e in scaling_groups:
-                current_entities.append(e["id"])
-
-            for a in apps:
-                current_entities.append(a["id"])
-
-            for a in application_entities:
-                current_entities.append(a["id"])
-
-            for a in rds:
-                current_entities.append(a["id"])
-
-            for a in elasticaches:
-                current_entities.append(a["id"])
-
-            for a in dynamodbs:
-                current_entities.append(a["id"])
-
-            current_entities.append(ia_entity["id"])
-
-            headers = {'Content-Type': 'application/json'}
-            if not args.disable_oauth2:
-                token = os.getenv('ZMON_AGENT_TOKEN', tokens.get('uid'))
-                logger.info("Adding oauth2 token to requests {}...{}".format(token[:1], token[-1:]))
-                headers.update({'Authorization': 'Bearer {}'.format(token)})
-
-            # removing all entities
-            query = {'infrastructure_account': infrastructure_account, 'region': region, 'created_by': 'agent'}
-            r = requests.get(args.entityservice,
-                             params={'query': json.dumps(query)}, headers=headers, timeout=10)
-            entities = r.json()
-
-            existing_entities = {}
-
-            to_remove = []
-            for e in entities:
-                existing_entities[e['id']] = e
-                if e["id"] not in current_entities:
-                    to_remove.append(e["id"])
-
-            if os.getenv('zmon_user'):
-                auth = (os.getenv('zmon_user'), os.getenv('zmon_password', ''))
-            else:
-                auth = None
-
-            for e in to_remove:
-                logger.info("Removing entity: {}".format(e))
-
-                r = requests.delete(args.entityservice + "{}/".format(e), auth=auth, headers=headers, timeout=3)
-                if not r.ok:
-                    logger.warn("Got HTTP status code %s", r.status_code)
-
-            def put_entity(entity_type, entity):
-                logger.info("Adding {} entity: {}".format(entity_type, entity['id']))
-
-                r = requests.put(args.entityservice, auth=auth,
-                                 data=json.dumps(entity, default=json_serial),
-                                 headers=headers, timeout=3)
-                if not r.ok:
-                    logger.warn("Got HTTP status code %s", r.status_code)
-
-            put_entity('LOCAL', ia_entity)
-
-            for instance in apps:
-                put_entity('instance', instance)
-
-            for asg in scaling_groups:
-                put_entity('Auto Scaling group', asg)
-
-            for elb in elbs:
-                put_entity('elastic load balancer', elb)
-
-            for db in rds:
-                put_entity('RDS instance', db)
-
-            # merge here or we loose it on next pull
-            for app in application_entities:
-                if app['id'] in existing_entities:
-                    ex = existing_entities[app['id']]
-                    if 'scalyr_ts_id' in ex:
-                        app['scalyr_ts_id'] = ex['scalyr_ts_id']
-
-            for app in application_entities:
-                put_entity('application', app)
-
-            for elasticache in elasticaches:
-                put_entity('elasticache', elasticache)
-
-            for dynamodb in dynamodbs:
-                put_entity('dynamodb', dynamodb)
-
-if __name__ == '__main__':
-    main()
