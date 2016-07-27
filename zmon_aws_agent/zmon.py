@@ -26,7 +26,7 @@ class ZMon(object):
             self._session.headers.update({'Authorization': 'Bearer {}'.format(token)})
 
         if not verify:
-            logger.warning('ZMon client will skip SSL verification!')
+            logger.warning('ZMON client will skip SSL verification!')
             self._session.verify = False
 
         if debug:
@@ -57,9 +57,9 @@ class ZMon(object):
 
     def add_entity(self, entity):
         """
-        Create or update entity on ZMon.
+        Create or update entity on ZMON.
 
-        ZMon PUT entity API doesn't return JSON response.
+        ZMON PUT entity API doesn't return JSON response.
 
         :return: Response object.
         """
@@ -76,9 +76,9 @@ class ZMon(object):
 
     def delete_entity(self, entity_id):
         """
-        Delete entity from ZMon.
+        Delete entity from ZMON.
 
-        ZMon DELETE entity API doesn't return JSON response.
+        ZMON DELETE entity API doesn't return JSON response.
 
         :return: True if succeeded, False otherwise.
         :rtype: bool

@@ -29,12 +29,12 @@ def remove_missing_entities(existing_ids, current_ids, zmon_client, json=False):
     to_be_removed_ids = list(set(existing_ids) - set(current_ids))
 
     if not json:
-        logger.info('Removing {} entities from ZMon'.format(len(to_be_removed_ids)))
+        logger.info('Removing {} entities from ZMON'.format(len(to_be_removed_ids)))
         for entity_id in to_be_removed_ids:
             logger.info('Removing entity with id: {}'.format(entity_id))
             deleted = zmon_client.delete_entity(entity_id)
             if deleted:
-                logger.info('ZMon entity deleted successfully')
+                logger.info('ZMON entity deleted successfully')
             else:
                 logger.error('Failed to delete entity!')
 
@@ -56,12 +56,12 @@ def add_new_entities(all_current_entities, existing_entities, zmon_client, json=
 
     if not json:
         try:
-            logger.info('Found {} new entities to be added in ZMon'.format(len(new_entities)))
+            logger.info('Found {} new entities to be added in ZMON'.format(len(new_entities)))
             for entity in new_entities:
                 logger.info(
                     'Adding new {} entity with ID: {}'.format(entity['type'], entity['id']))
                 resp = zmon_client.add_entity(entity)
-                logger.info('ZMon response ... {}'.format(resp.status_code))
+                logger.info('ZMON response ... {}'.format(resp.status_code))
         except:
             logger.exception('Failed to add entity!')
 
@@ -69,7 +69,7 @@ def add_new_entities(all_current_entities, existing_entities, zmon_client, json=
 
 
 def main():
-    argp = argparse.ArgumentParser(description='ZMon AWS Agent')
+    argp = argparse.ArgumentParser(description='ZMON AWS Agent')
     argp.add_argument('-e', '--entity-service', dest='entityservice')
     argp.add_argument('-r', '--region', dest='region', default=None)
     argp.add_argument('-j', '--json', dest='json', action='store_true')
