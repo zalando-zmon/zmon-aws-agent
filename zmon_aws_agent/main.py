@@ -21,7 +21,7 @@ logger = logging.getLogger('zmon-aws-agent')
 
 def get_existing_ids(existing_entities):
     """Return existing entities IDs based on a condition to facilitate entity update path."""
-    return set({entity['id'] for entity in existing_entities})
+    return {entity['id'] for entity in existing_entities}
 
 
 def remove_missing_entities(existing_ids, current_ids, zmon_client, json=False):
@@ -148,7 +148,7 @@ def main():
 
         # 4. Removing misssing entities
         existing_ids = get_existing_ids(entities)
-        current_entities_ids = set({e['id'] for e in current_entities})
+        current_entities_ids = {e['id'] for e in current_entities}
 
         to_be_removed = remove_missing_entities(existing_ids, current_entities_ids, zmon_client, json=args.json)
 
