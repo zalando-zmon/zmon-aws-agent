@@ -6,6 +6,15 @@ if [ -z "$ENTITY_SERVICE_URL" ]; then
 fi
 
 echo "Entity Service: " $ENTITY_SERVICE_URL
-echo $ENTITY_SERVICE_URL > /etc/entity_service_url
 
-/run.sh
+if [ -z $AGENT_SLEEP_SECONDS ] ; then
+  export AGENT_SLEEP_SECONDS=60
+fi
+
+while :
+do
+    echo "Executing AWS agent..."
+    zmon-aws-agent -e $ENTITY_SERVICE_URL
+    echo "sleeping..." $AGENT_SLEEP_SECONDS "seconds"
+    sleep $AGENT_SLEEP_SECONDS
+done
