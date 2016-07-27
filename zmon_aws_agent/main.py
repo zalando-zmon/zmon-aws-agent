@@ -32,9 +32,7 @@ def remove_missing_entities(existing_ids, current_ids, zmon_client, json=False):
         for entity_id in to_be_removed_ids:
             logger.info('Removing entity with id: {}'.format(entity_id))
             deleted = zmon_client.delete_entity(entity_id)
-            if deleted:
-                logger.info('ZMON entity deleted successfully')
-            else:
+            if not deleted:
                 logger.error('Failed to delete entity!')
 
     return to_be_removed_ids
@@ -46,7 +44,8 @@ def new_or_updated_entity(entity, existing_entities_dict):
         return True
 
     existing_entities_dict[entity['id']].pop('last_modified', None)
-    return entity != existing_entities_dict[entity['id']]
+
+    return json.dumps(entity, sort_keys=True) != json.dumps(existing_entities_dict[entity['id']], sort_keys=True)
 
 
 def add_new_entities(all_current_entities, existing_entities, zmon_client, json=False):
@@ -138,6 +137,7 @@ def main():
         application_entities = aws.get_apps_from_entities(apps, infrastructure_account, region)
 
         current_entities = elbs + scaling_groups + apps + application_entities + rds + elasticaches + dynamodbs
+        current_entities.append(ia_entity)
 
         # 3. ZMON entities
         token = None if args.disable_oauth2 else tokens.get('uid')
@@ -160,6 +160,11 @@ def main():
         new_entities = add_new_entities(current_entities, entities, zmon_client, json=args.json)
 
         logger.info('Found {} new entities from {} entities'.format(len(new_entities), len(current_entities)))
+
+        types = {e['type']: len([t for t in new_entities if t['type'] == e['type']]) for e in new_entities}
+
+        for t, v in types.items():
+            logger.info('Found {} new entities of type: {}'.format(v, t))
 
     # Check if it is a dry run!
     if args.json:
