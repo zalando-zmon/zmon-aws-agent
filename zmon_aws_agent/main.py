@@ -19,6 +19,14 @@ logging.getLogger('botocore.vendored.requests.packages').setLevel(logging.WARN)
 logger = logging.getLogger('zmon-aws-agent')
 
 
+def normalized_dict(d):
+    try:
+        return json.loads(json.dumps(d))
+    except:
+        # As a safe fallback!
+        return d
+
+
 def get_existing_ids(existing_entities):
     """Return existing entities IDs based on a condition to facilitate entity update path."""
     return {entity['id'] for entity in existing_entities}
@@ -45,7 +53,7 @@ def new_or_updated_entity(entity, existing_entities_dict):
 
     existing_entities_dict[entity['id']].pop('last_modified', None)
 
-    return json.dumps(entity, sort_keys=True) != json.dumps(existing_entities_dict[entity['id']], sort_keys=True)
+    return normalized_dict(entity) != normalized_dict(existing_entities_dict[entity['id']])
 
 
 def add_new_entities(all_current_entities, existing_entities, zmon_client, json=False):
