@@ -3,6 +3,7 @@ import base64
 import hashlib
 import time
 import inflection
+import re
 import string
 
 from datetime import datetime
@@ -19,7 +20,17 @@ BASE_DICT = dict((c, i) for i, c in enumerate(BASE_LIST))
 DNS_ZONE_CACHE = {}
 DNS_RR_CACHE_ZONE = {}
 
+INVALID_ENTITY_CHARS_PATTERN = re.compile('[^a-zA-Z0-9@._:\[\]-]')
+
 logger = logging.getLogger(__name__)
+
+
+def entity_id(s: str) -> str:
+    '''
+    >>> entity_id('a_bc/def[123:456]')
+    'a_bc-def[123:456]'
+    '''
+    return INVALID_ENTITY_CHARS_PATTERN.sub('-', s)
 
 
 def json_serial(obj):
@@ -213,11 +224,11 @@ def get_running_apps(region):
                 else:
                     ins['events'] = []
 
-                ins['id'] = '{}-{}-{}[aws:{}:{}]'.format(user_data['application_id'],
-                                                         user_data['application_version'],
-                                                         get_hash(i['PrivateIpAddress'] + ''),
-                                                         owner,
-                                                         region)
+                ins['id'] = entity_id('{}-{}-{}[aws:{}:{}]'.format(user_data['application_id'],
+                                                                   user_data['application_version'],
+                                                                   get_hash(i['PrivateIpAddress'] + ''),
+                                                                   owner,
+                                                                   region))
 
                 ins['application_id'] = user_data['application_id']
                 ins['application_version'] = user_data['application_version']
@@ -241,14 +252,14 @@ def get_running_apps(region):
                 if 'Name' in tags and 'cassandra' in tags['Name'] and 'opscenter' not in tags['Name']:
                     cas = ins.copy()
                     cas['type'] = 'cassandra'
-                    cas['id'] = 'cas-{}'.format(cas['id'])
+                    cas['id'] = entity_id('cas-{}'.format(cas['id']))
                     result.append(cas)
 
                 result.append(ins)
 
             else:
-                ins['id'] = '{}-{}[aws:{}:{}]'.format(i['InstanceId'], get_hash(i['PrivateIpAddress'] + ''),
-                                                      owner, region)
+                ins['id'] = entity_id('{}-{}[aws:{}:{}]'.format(i['InstanceId'], get_hash(i['PrivateIpAddress'] + ''),
+                                                                owner, region))
                 # `tags` is already a dict, but we need the raw list
                 assign_properties_from_tags(ins, i.get('Tags', []))
 
@@ -285,7 +296,7 @@ def get_running_elbs(region, acc):
         name = e['LoadBalancerName']
 
         lb = {'type': 'elb', 'infrastructure_account': acc, 'region': region, 'created_by': 'agent'}
-        lb['id'] = 'elb-{}[{}:{}]'.format(name, acc, region)
+        lb['id'] = entity_id('elb-{}[{}:{}]'.format(name, acc, region))
         lb['dns_name'] = e['DNSName']
         lb['host'] = e['DNSName']
         lb['name'] = name
@@ -336,7 +347,7 @@ def get_auto_scaling_groups(region, acc):
 
     for g in asgs:
         sg = {'type': 'asg', 'infrastructure_account': acc, 'region': region, 'created_by': 'agent'}
-        sg['id'] = 'asg-{}[{}:{}]'.format(g['AutoScalingGroupName'], acc, region)
+        sg['id'] = entity_id('asg-{}[{}:{}]'.format(g['AutoScalingGroupName'], acc, region))
         sg['name'] = g['AutoScalingGroupName']
         sg['availability_zones'] = g['AvailabilityZones']
         sg['desired_capacity'] = g['DesiredCapacity']
@@ -381,7 +392,7 @@ def get_elasticache_nodes(region, acc):
                 continue
 
             node = {
-                'id': 'elc-{}-{}[{}:{}]'.format(c['CacheClusterId'], n['CacheNodeId'], acc, region),
+                'id': entity_id('elc-{}-{}[{}:{}]'.format(c['CacheClusterId'], n['CacheNodeId'], acc, region)),
                 'region': region,
                 'created_by': 'agent',
                 'infrastructure_account': '{}'.format(acc),
@@ -423,7 +434,7 @@ def get_dynamodb_tables(region, acc):
                 continue
 
             table = {
-                'id': 'dynamodb-{}[{}:{}]'.format(t['TableName'], acc, region),
+                'id': entity_id('dynamodb-{}[{}:{}]'.format(t['TableName'], acc, region)),
                 'region': region,
                 'created_by': 'agent',
                 'infrastructure_account': '{}'.format(acc),
@@ -452,7 +463,7 @@ def get_rds_instances(region, acc):
         for i in instances['DBInstances']:
 
             db = {
-                'id': 'rds-{}[{}]'.format(i['DBInstanceIdentifier'], acc),
+                'id': entity_id('rds-{}[{}]'.format(i['DBInstanceIdentifier'], acc)),
                 'created_by': 'agent',
                 'infrastructure_account': '{}'.format(acc)
             }
@@ -499,7 +510,7 @@ def get_apps_from_entities(instances, account, region):
     applications = []
     for a in apps:
         applications.append({
-            'id': 'a-{}[{}:{}]'.format(a, account, region),
+            'id': entity_id('a-{}[{}:{}]'.format(a, account, region)),
             'application_id': a,
             'region': region,
             'infrastructure_account': account,
