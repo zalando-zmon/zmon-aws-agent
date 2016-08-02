@@ -95,7 +95,7 @@ def populate_dns_data():
         DNS_RR_CACHE_ZONE[zone['Name']] = [
             r for r in records if (
                 ('SetIdentifier' in r and 'Weight' in r) and
-                (r['type'] == 'CNAME' or r.get('AliasTarget', {}).get('DNSName'))
+                (r['Type'] == 'CNAME' or r.get('AliasTarget', {}).get('DNSName'))
             )
         ]
 
