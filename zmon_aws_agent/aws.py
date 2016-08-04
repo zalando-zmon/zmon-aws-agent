@@ -224,8 +224,15 @@ def get_running_apps(region):
                 else:
                     ins['events'] = []
 
+                stack_version = user_data['application_version']
+                if 'StackVersion' in tags:
+                    ins['stack'] = tags['Name']
+                    stack_version = tags['StackVersion']
+                    if 'aws:cloudformation:logical-id' in tags:
+                        ins['resource_id'] = tags['aws:cloudformation:logical-id']
+
                 ins['id'] = entity_id('{}-{}-{}[aws:{}:{}]'.format(user_data['application_id'],
-                                                                   user_data['application_version'],
+                                                                   stack_version,
                                                                    get_hash(i['PrivateIpAddress'] + ''),
                                                                    owner,
                                                                    region))
@@ -238,11 +245,6 @@ def get_running_apps(region):
                     ins['ports'] = user_data['ports']
 
                 ins['runtime'] = user_data['runtime']
-
-                if 'StackVersion' in tags:
-                    ins['stack'] = tags['Name']
-                    if 'aws:cloudformation:logical-id' in tags:
-                        ins['resource_id'] = tags['aws:cloudformation:logical-id']
 
                 # `tags` is already a dict, but we need the raw list
                 assign_properties_from_tags(ins, i.get('Tags', []))
@@ -260,6 +262,7 @@ def get_running_apps(region):
             else:
                 ins['id'] = entity_id('{}-{}[aws:{}:{}]'.format(i['InstanceId'], get_hash(i['PrivateIpAddress'] + ''),
                                                                 owner, region))
+
                 # `tags` is already a dict, but we need the raw list
                 assign_properties_from_tags(ins, i.get('Tags', []))
 
