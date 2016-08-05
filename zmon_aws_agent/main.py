@@ -7,9 +7,11 @@ import json
 import requests
 import tokens
 
+from zmon_cli.client import Zmon, compare_entities
+
 import zmon_aws_agent.aws as aws
 
-from zmon_aws_agent.zmon import ZMon
+from zmon_aws_agent.common import get_user_agent
 
 
 logging.getLogger('urllib3.connectionpool').setLevel(logging.WARN)
@@ -17,14 +19,6 @@ logging.getLogger('requests.packages.urllib3.connectionpool').setLevel(logging.W
 logging.getLogger('botocore.vendored.requests.packages').setLevel(logging.WARN)
 
 logger = logging.getLogger('zmon-aws-agent')
-
-
-def normalized_dict(d):
-    try:
-        return json.loads(json.dumps(d))
-    except:
-        # As a safe fallback!
-        return d
 
 
 def get_existing_ids(existing_entities):
@@ -53,7 +47,7 @@ def new_or_updated_entity(entity, existing_entities_dict):
 
     existing_entities_dict[entity['id']].pop('last_modified', None)
 
-    return normalized_dict(entity) != normalized_dict(existing_entities_dict[entity['id']])
+    return not compare_entities(entity, existing_entities_dict[entity['id']])
 
 
 def add_new_entities(all_current_entities, existing_entities, zmon_client, json=False):
@@ -149,7 +143,7 @@ def main():
 
         # 3. ZMON entities
         token = None if args.disable_oauth2 else tokens.get('uid')
-        zmon_client = ZMon(args.entityservice, token=token)
+        zmon_client = Zmon(args.entityservice, token=token, user_agent=get_user_agent())
 
         query = {'infrastructure_account': infrastructure_account, 'region': region, 'created_by': 'agent'}
         entities = zmon_client.get_entities(query)
