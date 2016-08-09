@@ -29,15 +29,24 @@ def get_existing_ids(existing_entities):
 def remove_missing_entities(existing_ids, current_ids, zmon_client, json=False):
     to_be_removed_ids = list(set(existing_ids) - set(current_ids))
 
+    error_count = 0
+
     if not json:
         logger.info('Removing {} entities from ZMON'.format(len(to_be_removed_ids)))
         for entity_id in to_be_removed_ids:
-            logger.info('Removing entity with id: {}'.format(entity_id))
-            deleted = zmon_client.delete_entity(entity_id)
-            if not deleted:
-                logger.error('Failed to delete entity!')
+            try:
+                logger.info('Removing entity with id: {}'.format(entity_id))
 
-    return to_be_removed_ids
+                deleted = zmon_client.delete_entity(entity_id)
+
+                if not deleted:
+                    logger.error('Failed to delete entity!')
+                    error_count += 1
+            except:
+                logger.exception('Exception while deleting entity: {}'.format(entity_id))
+                error_count += 1
+
+    return to_be_removed_ids, error_count
 
 
 def new_or_updated_entity(entity, existing_entities_dict):
@@ -54,19 +63,20 @@ def add_new_entities(all_current_entities, existing_entities, zmon_client, json=
     existing_entities_dict = {e['id']: e for e in existing_entities}
     new_entities = [e for e in all_current_entities if new_or_updated_entity(e, existing_entities_dict)]
 
-    if not json:
-        try:
-            logger.info('Found {} new entities to be added in ZMON'.format(len(new_entities)))
-            for entity in new_entities:
-                logger.info(
-                    'Adding new {} entity with ID: {}'.format(entity['type'], entity['id']))
-                resp = zmon_client.add_entity(entity)
-                if not resp.ok:
-                    logger.error('ZMON error response ... {}'.format(resp.status_code))
-        except:
-            logger.exception('Failed to add entity!')
+    error_count = 0
 
-    return new_entities
+    if not json:
+        logger.info('Adding {} new entities in ZMON'.format(len(new_entities)))
+        for entity in new_entities:
+            try:
+                logger.info('Adding new {} entity with ID: {}'.format(entity['type'], entity['id']))
+
+                zmon_client.add_entity(entity)
+            except:
+                logger.exception('Failed to add entity: {}'.format(entity))
+                error_count += 1
+
+    return new_entities, error_count
 
 
 def main():
@@ -152,16 +162,25 @@ def main():
         existing_ids = get_existing_ids(entities)
         current_entities_ids = {e['id'] for e in current_entities}
 
-        to_be_removed = remove_missing_entities(existing_ids, current_entities_ids, zmon_client, json=args.json)
+        to_be_removed, delete_error_count = remove_missing_entities(
+            existing_ids, current_entities_ids, zmon_client, json=args.json)
 
-        # 5. Always add Local entity
+        logger.info('Found {} removed entities from {} entities ({} failed)'.format(
+            len(new_entities), len(current_entities), delete_error_count))
+
+        # 5. Get new/updated entities
+        new_entities, add_error_count = add_new_entities(current_entities, entities, zmon_client, json=args.json)
+
+        logger.info('Found {} new entities from {} entities ({} failed)'.format(
+            len(new_entities), len(current_entities), add_error_count))
+
+        # 6. Always add Local entity
         if not args.json:
-            zmon_client.add_entity(ia_entity)
-
-        # 6. Get new/updated entities
-        new_entities = add_new_entities(current_entities, entities, zmon_client, json=args.json)
-
-        logger.info('Found {} new entities from {} entities'.format(len(new_entities), len(current_entities)))
+            ia_entity['errors'] = {'delete_count': delete_error_count, 'add_count': add_error_count}
+            try:
+                zmon_client.add_entity(ia_entity)
+            except:
+                logger.exception('Failed to add Local entity: {}'.format(ia_entity))
 
         types = {e['type']: len([t for t in new_entities if t['type'] == e['type']]) for e in new_entities}
 
