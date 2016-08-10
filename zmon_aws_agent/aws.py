@@ -1,7 +1,6 @@
 import logging
 import base64
 import hashlib
-import time
 import inflection
 import re
 import string
@@ -12,6 +11,8 @@ import boto3
 import yaml
 
 from botocore.exceptions import ClientError
+
+from zmon_aws_agent.common import call_and_retry
 
 
 BASE_LIST = string.digits + string.ascii_letters
@@ -145,7 +146,8 @@ def get_running_apps(region):
     aws_client = boto3.client('ec2', region_name=region)
 
     paginator = aws_client.get_paginator('describe_instances')
-    rs = paginator.paginate(PaginationConfig={'MaxItems': 1000}).build_full_result()['Reservations']
+    rs = call_and_retry(
+        lambda: paginator.paginate(PaginationConfig={'MaxItems': 1000}).build_full_result()['Reservations'])
 
     result = []
 
@@ -160,26 +162,16 @@ def get_running_apps(region):
             if str(i['State']['Name']) != 'running':
                 continue
 
-            max_tries = 10
-            sleep_time = 5
             user_data = None
-            for n in range(max_tries):
-                try:
-                    user_data_response = aws_client.describe_instance_attribute(InstanceId=i['InstanceId'],
-                                                                                Attribute='userData')
-                    user_data = base64.b64decode(user_data_response['UserData']['Value'])
-                    user_data = yaml.safe_load(user_data)
-                    break
-                except ClientError as e:
-                    if e.response['Error']['Code'] == 'Throttling':
-                        if n < max_tries - 1:
-                            logger.info('Throttling AWS API requests...')
-                            time.sleep(sleep_time)
-                            sleep_time = min(30, sleep_time * 1.5)
-                            continue
-                    pass
-                except:
-                    pass
+            try:
+                user_data_response = call_and_retry(aws_client.describe_instance_attribute,
+                                                    InstanceId=i['InstanceId'],
+                                                    Attribute='userData')
+
+                user_data = base64.b64decode(user_data_response['UserData']['Value'])
+                user_data = yaml.safe_load(user_data)
+            except:
+                pass
 
             tags = get_tags_dict(i.get('Tags', []))
 
@@ -203,21 +195,8 @@ def get_running_apps(region):
             if isinstance(user_data, dict) and 'application_id' in user_data:
                 ins['state_reason'] = i['StateTransitionReason']
 
-                instance_status_resp = []
-                max_tries = 10
-                sleep_time = 5
-                for n in range(max_tries):
-                    try:
-                        instance_status_resp = aws_client.describe_instance_status(InstanceIds=[i['InstanceId']])
-                        break
-                    except ClientError as e:
-                        if e.response['Error']['Code'] == 'Throttling':
-                            if n < max_tries - 1:
-                                logger.info('Throttling AWS API requests...')
-                                time.sleep(sleep_time)
-                                sleep_time = min(30, sleep_time * 1.5)
-                                continue
-                        raise
+                instance_status_resp = call_and_retry(aws_client.describe_instance_status,
+                                                      InstanceIds=[i['InstanceId']])
 
                 if 'Events' in instance_status_resp['InstanceStatuses'][0]:
                     ins['events'] = instance_status_resp['InstanceStatuses'][0]['Events']
@@ -278,7 +257,9 @@ def get_running_elbs(region, acc):
     elb_client = boto3.client('elb', region_name=region)
 
     paginator = elb_client.get_paginator('describe_load_balancers')
-    elbs = paginator.paginate(PaginationConfig={'MaxItems': 1000}).build_full_result()['LoadBalancerDescriptions']
+
+    elbs = call_and_retry(
+        lambda: paginator.paginate(PaginationConfig={'MaxItems': 1000}).build_full_result()['LoadBalancerDescriptions'])
 
     # get all the tags and cache them in a dict
     elb_names = [e['LoadBalancerName'] for e in elbs]
@@ -288,8 +269,10 @@ def get_running_elbs(region, acc):
     # work around it in a really ugly way
     #
     name_chunks = [elb_names[i: i + 20] for i in range(0, len(elb_names), 20)]
-    tag_desc_chunks = [elb_client.describe_tags(LoadBalancerNames=names)
+
+    tag_desc_chunks = [call_and_retry(elb_client.describe_tags, LoadBalancerNames=names)
                        for names in name_chunks]
+
     tags = {d['LoadBalancerName']: d.get('Tags', [])
             for tag_desc in tag_desc_chunks for d in tag_desc['TagDescriptions']}
 
@@ -311,22 +294,13 @@ def get_running_elbs(region, acc):
         add_traffic_tags_to_entity(lb)
         lbs.append(lb)
 
-        max_tries = 10
-        sleep_time = 5
         ihealth = []
-        for i in range(max_tries):
-            try:
-                ihealth = elb_client.describe_instance_health(LoadBalancerName=e['LoadBalancerName'])['InstanceStates']
-                break
-            except ClientError as e:
-                if e.response['Error']['Code'] == 'Throttling':
-                    if i < max_tries - 1:
-                        # Try again
-                        time.sleep(sleep_time)
-                        sleep_time = min(30, sleep_time * 1.5)
-                        continue
-                if e.response['Error']['Code'] in ('LoadBalancerNotFound', 'ValidationError', 'Throttling'):
-                    break
+
+        try:
+            ihealth = call_and_retry(elb_client.describe_instance_health,
+                                     LoadBalancerName=e['LoadBalancerName'])['InstanceStates']
+        except ClientError as e:
+            if e.response['Error']['Code'] not in ('LoadBalancerNotFound', 'ValidationError', 'Throttling'):
                 raise
 
         in_service = 0
@@ -346,7 +320,9 @@ def get_auto_scaling_groups(region, acc):
     ec2_client = boto3.client('ec2', region_name=region)
 
     paginator = as_client.get_paginator('describe_auto_scaling_groups')
-    asgs = paginator.paginate(PaginationConfig={'MaxItems': 1000}).build_full_result()['AutoScalingGroups']
+
+    asgs = call_and_retry(
+        lambda: paginator.paginate(PaginationConfig={'MaxItems': 1000}).build_full_result()['AutoScalingGroups'])
 
     for g in asgs:
         sg = {'type': 'asg', 'infrastructure_account': acc, 'region': region, 'created_by': 'agent'}
@@ -362,7 +338,9 @@ def get_auto_scaling_groups(region, acc):
         instance_ids = [i['InstanceId'] for i in g['Instances'] if i['LifecycleState'] == 'InService']
 
         ec2_paginator = ec2_client.get_paginator('describe_instances')
-        reservations = ec2_paginator.paginate(InstanceIds=instance_ids).build_full_result()['Reservations']
+
+        reservations = call_and_retry(
+            lambda: ec2_paginator.paginate(InstanceIds=instance_ids).build_full_result()['Reservations'])
 
         sg['instances'] = []
         for r in reservations:
@@ -381,8 +359,9 @@ def get_elasticache_nodes(region, acc):
     elc = boto3.client('elasticache', region_name=region)
     paginator = elc.get_paginator('describe_cache_clusters')
 
-    elcs = paginator.paginate(
-        ShowCacheNodeInfo=True, PaginationConfig={'MaxItems': 1000}).build_full_result()['CacheClusters']
+    elcs = call_and_retry(
+        lambda: paginator.paginate(
+            ShowCacheNodeInfo=True, PaginationConfig={'MaxItems': 1000}).build_full_result()['CacheClusters'])
 
     nodes = []
 
@@ -426,12 +405,14 @@ def get_dynamodb_tables(region, acc):
         ddb = boto3.client('dynamodb', region_name=region)
 
         paginator = ddb.get_paginator('list_tables')
-        ts = paginator.paginate(PaginationConfig={'MaxItems': 1000}).build_full_result()['TableNames']
+
+        ts = call_and_retry(
+            lambda: paginator.paginate(PaginationConfig={'MaxItems': 1000}).build_full_result()['TableNames'])
 
         tables = []
 
         for tn in ts:
-            t = ddb.describe_table(TableName=tn)['Table']
+            t = call_and_retry(ddb.describe_table, TableName=tn)['Table']
 
             if t['TableStatus'] not in ['ACTIVE', 'UPDATING']:
                 continue
@@ -461,7 +442,8 @@ def get_rds_instances(region, acc):
         rds_client = boto3.client('rds', region_name=region)
 
         paginator = rds_client.get_paginator('describe_db_instances')
-        instances = paginator.paginate(PaginationConfig={'MaxItems': 1000}).build_full_result()
+
+        instances = call_and_retry(lambda: paginator.paginate(PaginationConfig={'MaxItems': 1000}).build_full_result())
 
         for i in instances['DBInstances']:
 
