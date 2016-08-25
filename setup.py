@@ -42,7 +42,7 @@ class PyTest(TestCommand):
     def initialize_options(self):
         TestCommand.initialize_options(self)
         self.cov = None
-        self.cov_xml = False
+        self.pytest_args = ['--cov', MAIN_PACKAGE, '--cov-report', 'term-missing', '-s', '-v']
         self.cov_html = False
 
     def finalize_options(self):
@@ -60,11 +60,7 @@ class PyTest(TestCommand):
         except:
             raise RuntimeError('py.test is not installed, run: pip install pytest')
 
-        params = {'args': self.test_args}
-        if self.cov:
-            params['args'] += self.cov
-
-        errno = pytest.main(**params)
+        errno = pytest.main(self.pytest_args)
         sys.exit(errno)
 
 
