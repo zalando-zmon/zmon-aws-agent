@@ -77,6 +77,7 @@ setup(
     packages=find_packages(exclude=['tests']),
     install_requires=get_requirements('requirements.txt'),
     test_suite='tests',
+    tests_require=['pytest', 'pytest_cov', 'mock==2.0.0'],
     cmdclass={
         'test': PyTest
     },

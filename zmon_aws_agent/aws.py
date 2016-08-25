@@ -81,7 +81,7 @@ def populate_dns_data():
         result = route53.list_resource_record_sets(HostedZoneId=zone['Id'])
         records = result['ResourceRecordSets']
 
-        while result['IsTruncated']:
+        while result.get('IsTruncated', False):
             recordfilter = {
                 'HostedZoneId': zone['Id'],
                 'StartRecordName': result['NextRecordName'],
@@ -281,17 +281,24 @@ def get_running_elbs(region, acc):
     for e in elbs:
         name = e['LoadBalancerName']
 
-        lb = {'type': 'elb', 'infrastructure_account': acc, 'region': region, 'created_by': 'agent'}
-        lb['id'] = entity_id('elb-{}[{}:{}]'.format(name, acc, region))
-        lb['dns_name'] = e['DNSName']
-        lb['host'] = e['DNSName']
-        lb['name'] = name
-        lb['scheme'] = e['Scheme']
-        lb['url'] = 'https://{}'.format(lb['host'])
-        lb['region'] = region
-        lb['members'] = len(e['Instances'])
+        lb = {
+            'id': entity_id('elb-{}[{}:{}]'.format(name, acc, region)),
+            'type': 'elb',
+            'infrastructure_account': acc,
+            'region': region,
+            'created_by': 'agent',
+            'dns_name': e['DNSName'],
+            'host': e['DNSName'],
+            'name': name,
+            'scheme': e['Scheme'],
+            'url': 'https://{}'.format(e['DNSName']),
+            'members': len(e['Instances']),
+        }
+
         assign_properties_from_tags(lb, tags[name])
+
         add_traffic_tags_to_entity(lb)
+
         lbs.append(lb)
 
         ihealth = []
@@ -325,14 +332,21 @@ def get_auto_scaling_groups(region, acc):
         lambda: paginator.paginate(PaginationConfig={'MaxItems': 1000}).build_full_result()['AutoScalingGroups'])
 
     for g in asgs:
-        sg = {'type': 'asg', 'infrastructure_account': acc, 'region': region, 'created_by': 'agent'}
-        sg['id'] = entity_id('asg-{}[{}:{}]'.format(g['AutoScalingGroupName'], acc, region))
-        sg['name'] = g['AutoScalingGroupName']
-        sg['availability_zones'] = g['AvailabilityZones']
-        sg['desired_capacity'] = g['DesiredCapacity']
-        sg['max_size'] = g['MaxSize']
-        sg['min_size'] = g['MinSize']
+        sg = {
+            'id': entity_id('asg-{}[{}:{}]'.format(g['AutoScalingGroupName'], acc, region)),
+            'type': 'asg',
+            'infrastructure_account': acc,
+            'region': region,
+            'created_by': 'agent',
+            'name': g['AutoScalingGroupName'],
+            'availability_zones': g['AvailabilityZones'],
+            'desired_capacity': g['DesiredCapacity'],
+            'max_size': g['MaxSize'],
+            'min_size': g['MinSize'],
+        }
+
         assign_properties_from_tags(sg, g.get('Tags', []))
+
         add_traffic_tags_to_entity(sg)
 
         instance_ids = [i['InstanceId'] for i in g['Instances'] if i['LifecycleState'] == 'InService']
@@ -450,15 +464,14 @@ def get_rds_instances(region, acc):
             db = {
                 'id': entity_id('rds-{}[{}]'.format(i['DBInstanceIdentifier'], acc)),
                 'created_by': 'agent',
-                'infrastructure_account': '{}'.format(acc)
+                'infrastructure_account': '{}'.format(acc),
+                'region': region,
+                'type': 'database',
+                'engine': i['Engine'],
+                'port': i['Endpoint']['Port'],
+                'host': i['Endpoint']['Address'],
+                'name': i['DBInstanceIdentifier'],
             }
-
-            db['type'] = 'database'
-            db['engine'] = i['Engine']
-            db['port'] = i['Endpoint']['Port']
-            db['host'] = i['Endpoint']['Address']
-            db['name'] = i['DBInstanceIdentifier']
-            db['region'] = region
 
             if 'EngineVersion' in i:
                 db['version'] = i['EngineVersion']
@@ -487,20 +500,13 @@ def get_account_alias(region):
 
 
 def get_apps_from_entities(instances, account, region):
-    apps = set()
-    for i in instances:
-        if 'application_id' in i:
-            apps.add(i['application_id'])
-
-    applications = []
-    for a in apps:
-        applications.append({
-            'id': entity_id('a-{}[{}:{}]'.format(a, account, region)),
-            'application_id': a,
-            'region': region,
-            'infrastructure_account': account,
-            'type': 'application',
-            'created_by': 'agent',
-        })
+    applications = [{
+        'id': entity_id('a-{}[{}:{}]'.format(a['application_id'], account, region)),
+        'application_id': a['application_id'],
+        'region': region,
+        'infrastructure_account': account,
+        'type': 'application',
+        'created_by': 'agent',
+    } for a in instances if 'application_id' in a]
 
     return applications

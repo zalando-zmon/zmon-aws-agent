@@ -7,6 +7,7 @@ from zmon_aws_agent import __version__
 
 
 MAX_RETRIES = 10
+TIME_OUT = 0.5
 
 logger = logging.getLogger(__name__)
 
@@ -16,7 +17,7 @@ def get_user_agent():
 
 
 def get_sleep_duration(retries):
-    return 2 ** retries * 0.5
+    return 2 ** retries * TIME_OUT
 
 
 def call_and_retry(fn, *args, **kwargs):
