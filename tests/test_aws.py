@@ -5,7 +5,7 @@ from mock import MagicMock, call
 import zmon_aws_agent.aws as aws
 
 from conftest import ThrottleError
-from conftest import ACCOUNT, REGION, get_elc_cluster, get_autoscaling, get_elbs, get_apps
+from conftest import ACCOUNT, REGION, get_elc_cluster, get_autoscaling, get_elbs, get_elbs_application, get_apps
 
 
 def get_boto_client(monkeypatch, *args):
@@ -165,8 +165,23 @@ def test_aws_get_auto_scaling_groups(monkeypatch):
     boto.assert_has_calls(calls, any_order=True)
 
 
+def test_aws_get_running_elbs(monkeypatch):
+    get_classic = MagicMock()
+    get_classic.return_value = [1, 2]
+
+    get_application = MagicMock()
+    get_application.return_value = [3, 4]
+
+    monkeypatch.setattr('zmon_aws_agent.aws.get_running_elbs_classic', get_classic)
+    monkeypatch.setattr('zmon_aws_agent.aws.get_running_elbs_application', get_application)
+
+    res = aws.get_running_elbs('r1', 'acc1')
+
+    assert res == [1, 2, 3, 4]
+
+
 @pytest.mark.parametrize('exc', [True, ThrottleError(), ThrottleError(throttling=False), RuntimeError])
-def test_aws_get_running_elbs(monkeypatch, exc):
+def test_aws_get_running_elbs_classic(monkeypatch, exc):
     resp, tags, health, result = get_elbs()
 
     fail = False
@@ -190,15 +205,60 @@ def test_aws_get_running_elbs(monkeypatch, exc):
 
     if fail:
         with pytest.raises(Exception):
-            aws.get_running_elbs(REGION, ACCOUNT)
+            aws.get_running_elbs_classic(REGION, ACCOUNT)
     else:
-        res = aws.get_running_elbs(REGION, ACCOUNT)
+        res = aws.get_running_elbs_classic(REGION, ACCOUNT)
 
         assert res == result
 
     elb_client.get_paginator.assert_called_with('describe_load_balancers')
 
     boto.assert_called_with('elb', region_name=REGION)
+
+
+@pytest.mark.parametrize('exc', [True, ThrottleError(), ThrottleError(throttling=False), RuntimeError])
+def test_aws_get_running_elbs_application(monkeypatch, exc):
+    resp, tags, groups, health, result = get_elbs_application()
+
+    fail = False
+
+    elb_client = MagicMock()
+
+    elb_pagintor = MagicMock()
+    elb_pagintor.paginate.return_value.build_full_result.return_value = resp
+
+    elb_target_groups_pagintor = MagicMock()
+    elb_target_groups_pagintor.paginate.return_value.build_full_result.return_value = groups
+
+    elb_client.get_paginator.side_effect = [elb_pagintor, elb_target_groups_pagintor]
+
+    elb_client.describe_tags.return_value = tags
+
+    elb_client.describe_target_health.return_value = health
+    if exc is not True:
+        if isinstance(exc, ThrottleError):
+            fail = not exc.throttling
+            result[0]['active_members'] = 0
+            result[0]['members'] = 0
+        else:
+            fail = True
+        elb_client.describe_target_health.side_effect = exc
+
+    monkeypatch.setattr('zmon_aws_agent.aws.call_and_retry', call_retry_mock)
+    boto = get_boto_client(monkeypatch, elb_client)
+
+    if fail:
+        with pytest.raises(Exception):
+            aws.get_running_elbs_application(REGION, ACCOUNT)
+    else:
+        res = aws.get_running_elbs_application(REGION, ACCOUNT)
+
+        assert res == result
+
+    calls = [call('describe_load_balancers'), call('describe_target_groups')]
+    elb_client.get_paginator.assert_has_calls(calls)
+
+    boto.assert_called_with('elbv2', region_name=REGION)
 
 
 def test_aws_get_running_apps(monkeypatch):

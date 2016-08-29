@@ -254,6 +254,10 @@ def get_running_apps(region):
 
 
 def get_running_elbs(region, acc):
+    return get_running_elbs_classic(region, acc) + get_running_elbs_application(region, acc)
+
+
+def get_running_elbs_classic(region, acc):
     elb_client = boto3.client('elb', region_name=region)
 
     paginator = elb_client.get_paginator('describe_load_balancers')
@@ -287,6 +291,7 @@ def get_running_elbs(region, acc):
             'infrastructure_account': acc,
             'region': region,
             'created_by': 'agent',
+            'elb_type': 'classic',
             'dns_name': e['DNSName'],
             'host': e['DNSName'],
             'name': name,
@@ -316,6 +321,77 @@ def get_running_elbs(region, acc):
                 in_service += 1
 
         lb['active_members'] = in_service
+
+    return lbs
+
+
+def get_running_elbs_application(region, acc):
+    elb_client = boto3.client('elbv2', region_name=region)
+
+    paginator = elb_client.get_paginator('describe_load_balancers')
+
+    elbs = call_and_retry(
+        lambda: paginator.paginate(PaginationConfig={'MaxItems': 1000}).build_full_result()['LoadBalancers'])
+
+    elb_arns = [e['LoadBalancerArn'] for e in elbs]
+
+    arn_chunks = [elb_arns[i: i + 20] for i in range(0, len(elb_arns), 20)]
+
+    tag_desc_chunks = [call_and_retry(elb_client.describe_tags, ResourceArns=arns) for arns in arn_chunks]
+
+    tags = {d['ResourceArn']: d.get('Tags', []) for tag_desc in tag_desc_chunks for d in tag_desc['TagDescriptions']}
+
+    lbs = []
+
+    for e in elbs:
+        arn = e['LoadBalancerArn']
+        name = e['LoadBalancerName']
+
+        tg_paginator = elb_client.get_paginator('describe_target_groups')
+        target_groups = call_and_retry(
+            lambda: tg_paginator.paginate(LoadBalancerArn=arn).build_full_result()['TargetGroups'])
+
+        lb = {
+            'id': entity_id('elb-{}[{}:{}]'.format(name, acc, region)),
+            'type': 'elb',
+            'infrastructure_account': acc,
+            'region': region,
+            'created_by': 'agent',
+            'elb_type': 'application',
+            'dns_name': e['DNSName'],
+            'host': e['DNSName'],
+            'cloudwatch_name': '/'.join(arn.rsplit('/')[-3:]),  # name used by Cloudwatch!
+            'name': name,
+            'scheme': e['Scheme'],
+            'url': 'https://{}'.format(e['DNSName']),
+            'target_groups': len(target_groups),
+            'target_groups_arns': [tg['TargetGroupArn'] for tg in target_groups]
+        }
+
+        assign_properties_from_tags(lb, tags[arn])
+
+        add_traffic_tags_to_entity(lb)
+
+        healthy_targets = 0
+        members = 0
+        for tg in target_groups:
+            try:
+                target_health = call_and_retry(
+                    elb_client.describe_target_health, TargetGroupArn=tg['TargetGroupArn'])['TargetHealthDescriptions']
+
+                members += len(target_health)
+
+                for th in target_health:
+                    if th['TargetHealth']['State'] == 'healthy':
+                        healthy_targets += 1
+            except ClientError as e:
+                if e.response['Error']['Code'] not in ('LoadBalancerNotFound', 'ValidationError', 'Throttling'):
+                    raise
+
+        lb['members'] = members
+        lb['active_members'] = healthy_targets
+
+        lbs.append(lb)
 
     return lbs
 

@@ -144,6 +144,7 @@ def get_elbs():
             'infrastructure_account': ACCOUNT,
             'region': REGION,
             'created_by': 'agent',
+            'elb_type': 'classic',
             'dns_name': 'elb-1.example.org',
             'host': 'elb-1.example.org',
             'name': 'elb-1',
@@ -155,6 +156,54 @@ def get_elbs():
     ]
 
     return resp, tags, health, result
+
+
+def get_elbs_application():
+    resp = {
+        'LoadBalancers': [
+            {
+                'LoadBalancerArn': 'arn-/app/elb-1/123456',
+                'LoadBalancerName': 'elb-1',
+                'DNSName': 'elb-1.example.org',
+                'Scheme': 'https',
+            }
+        ]
+    }
+
+    tags = {'TagDescriptions': [{'ResourceArn': 'arn-/app/elb-1/123456', 'Tags': []}]}
+
+    groups = {'TargetGroups': [{'TargetGroupArn': 'arn-group-1-elb-1'}]}
+
+    health = {
+        'TargetHealthDescriptions': [
+            {'TargetHealth': {'State': 'healthy'}},
+            {'TargetHealth': {'State': 'healthy'}},
+            {'TargetHealth': {'State': 'terminated'}},
+        ]
+    }
+
+    result = [
+        {
+            'id': 'elb-elb-1[{}:{}]'.format(ACCOUNT, REGION),
+            'type': 'elb',
+            'infrastructure_account': ACCOUNT,
+            'region': REGION,
+            'created_by': 'agent',
+            'elb_type': 'application',
+            'dns_name': 'elb-1.example.org',
+            'host': 'elb-1.example.org',
+            'cloudwatch_name': 'app/elb-1/123456',
+            'name': 'elb-1',
+            'scheme': 'https',
+            'url': 'https://elb-1.example.org',
+            'members': 3,
+            'active_members': 2,
+            'target_groups': 1,
+            'target_groups_arns': ['arn-group-1-elb-1'],
+        }
+    ]
+
+    return resp, tags, groups, health, result
 
 
 def get_apps():
