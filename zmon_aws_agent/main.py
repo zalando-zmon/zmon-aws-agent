@@ -134,6 +134,7 @@ def main():
         rds = aws.get_rds_instances(region, infrastructure_account)
         elasticaches = aws.get_elasticache_nodes(region, infrastructure_account)
         dynamodbs = aws.get_dynamodb_tables(region, infrastructure_account)
+        certificates = aws.get_certificates(region, infrastructure_account)
 
     if infrastructure_account:
         account_alias = aws.get_account_alias(region)
@@ -148,7 +149,8 @@ def main():
 
         application_entities = aws.get_apps_from_entities(apps, infrastructure_account, region)
 
-        current_entities = elbs + scaling_groups + apps + application_entities + rds + elasticaches + dynamodbs
+        current_entities = (
+            elbs + scaling_groups + apps + application_entities + rds + elasticaches + dynamodbs + certificates)
         current_entities.append(ia_entity)
 
         # 3. ZMON entities
@@ -196,6 +198,7 @@ def main():
             'elbs': elbs,
             'elc': elasticaches,
             'rds': rds,
+            'certificates': certificates,
             'new_entities': new_entities,
             'to_be_removed': to_be_removed,
         }

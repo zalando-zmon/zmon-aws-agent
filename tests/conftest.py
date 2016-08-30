@@ -1,6 +1,8 @@
 import json
 import base64
 
+from datetime import datetime
+
 import pytest
 
 from botocore.exceptions import ClientError
@@ -268,6 +270,75 @@ def get_apps():
     ]
 
     return resp, status_resp, user_resp, result
+
+
+def get_certificates():
+    resp_iam = {
+        'ServerCertificateMetadataList': [
+            {
+                'Arn': 'arn-iam-zmon-cert-1',
+                'Expiration': datetime(2023, 4, 26, 0, 0),
+                'Path': '/',
+                'ServerCertificateId': '123456',
+                'ServerCertificateName': 'zmon-cert-1',
+                'UploadDate': datetime(2016, 4, 27, 11, 8, 50)
+            }
+        ]
+    }
+
+    resp_acm = {
+        'CertificateSummaryList': [
+            {
+                'CertificateArn': 'arn-acm-zmon-cert-2',
+                'DomainName': 'zmon-cert-2',
+            },
+            {
+                'CertificateArn': 'arn-acm-zmon-cert-3',
+                'DomainName': 'zmon-cert-3',
+            },
+        ]
+    }
+
+    acm_certs = [
+        {
+            'Certificate': {
+                'DomainName': 'zmon-cert-2',
+                'CertificateArn': 'arn-acm-zmon-cert-2',
+                'Status': 'ISSUED',
+                'NotAfter': datetime(2023, 4, 26, 0, 0),
+            }
+        },
+        {
+            'Certificate': {
+                'DomainName': 'zmon-cert-3',
+                'CertificateArn': 'arn-acm-zmon-cert-3',
+                'Status': 'VALIDATION_TIMED_OUT',
+            }
+        }
+    ]
+
+    result = [
+        {
+            'type': 'certificate', 'status': 'ISSUED', 'region': REGION, 'arn': 'arn-iam-zmon-cert-1',
+            'certificate_type': 'iam', 'id': 'cert-iam-zmon-cert-1[{}:{}]'.format(ACCOUNT, REGION),
+            'infrastructure_account': ACCOUNT, 'expiration': '2023-04-26T00:00:00',
+            'created_by': 'agent', 'name': 'zmon-cert-1',
+        },
+        {
+            'type': 'certificate', 'status': 'ISSUED', 'region': REGION, 'arn': 'arn-acm-zmon-cert-2',
+            'certificate_type': 'acm', 'id': 'cert-acm-zmon-cert-2[{}:{}]'.format(ACCOUNT, REGION),
+            'infrastructure_account': ACCOUNT, 'expiration': '2023-04-26T00:00:00',
+            'created_by': 'agent', 'name': 'zmon-cert-2',
+        },
+        {
+            'type': 'certificate', 'status': 'VALIDATION_TIMED_OUT', 'region': REGION, 'arn': 'arn-acm-zmon-cert-3',
+            'certificate_type': 'acm', 'id': 'cert-acm-zmon-cert-3[{}:{}]'.format(ACCOUNT, REGION),
+            'infrastructure_account': ACCOUNT, 'expiration': '',
+            'created_by': 'agent', 'name': 'zmon-cert-3',
+        }
+    ]
+
+    return resp_iam, resp_acm, acm_certs, result
 
 
 @pytest.fixture(params=[
