@@ -588,7 +588,7 @@ def get_certificates(region, acc):
                 'name': cert['ServerCertificateName'],
                 'arn': cert['Arn'],
                 'status': 'ISSUED',
-                'expiration': datetime.isoformat(cert['Expiration']),
+                'expiration': cert['Expiration'].isoformat(),
             }
 
             entities.append(e)
@@ -606,7 +606,7 @@ def get_certificates(region, acc):
                 'name': c['DomainName'],
                 'arn': c['CertificateArn'],
                 'status': c['Status'],
-                'expiration': datetime.isoformat(c['NotAfter']) if 'NotAfter' in c else '',
+                'expiration': c['NotAfter'].isoformat() if 'NotAfter' in c else '',
             }
 
             entities.append(e)
