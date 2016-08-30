@@ -262,15 +262,20 @@ def test_aws_get_running_elbs_application(monkeypatch, exc):
     boto.assert_called_with('elbv2', region_name=REGION)
 
 
-def test_aws_get_certificates(monkeypatch):
+@pytest.mark.parametrize('fail', [False, True])
+def test_aws_get_certificates(monkeypatch, fail):
     resp_iam, resp_acm, acm_certs, result = get_certificates()
 
     iam_client = MagicMock()
     iam_client.list_server_certificates.return_value = resp_iam
 
     acm_client = MagicMock()
-    acm_client.list_certificates.return_value = resp_acm
-    acm_client.describe_certificate.side_effect = acm_certs
+    if not fail:
+        acm_client.list_certificates.return_value = resp_acm
+        acm_client.describe_certificate.side_effect = acm_certs
+    else:
+        result = []
+        acm_client.list_certificates.side_effect = RuntimeError
 
     monkeypatch.setattr('zmon_aws_agent.aws.call_and_retry', call_retry_mock)
     boto = get_boto_client(monkeypatch, iam_client, acm_client)

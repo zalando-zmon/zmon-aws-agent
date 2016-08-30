@@ -570,45 +570,48 @@ def get_certificates(region, acc):
     iam_client = boto3.client('iam', region_name=region)
     acm_client = boto3.client('acm', region_name=region)
 
-    server_certs = iam_client.list_server_certificates()['ServerCertificateMetadataList']
-
-    acm_certs = acm_client.list_certificates()['CertificateSummaryList']
-
     entities = []
 
-    for cert in server_certs:
-        e = {
-            'id': entity_id('cert-iam-{}[{}:{}]'.format(cert['ServerCertificateName'], acc, region)),
-            'type': 'certificate',
-            'infrastructure_account': acc,
-            'region': region,
-            'created_by': 'agent',
-            'certificate_type': 'iam',
-            'name': cert['ServerCertificateName'],
-            'arn': cert['Arn'],
-            'status': 'ISSUED',
-            'expiration': datetime.isoformat(cert['Expiration']),
-        }
+    try:
+        server_certs = iam_client.list_server_certificates()['ServerCertificateMetadataList']
 
-        entities.append(e)
+        acm_certs = acm_client.list_certificates()['CertificateSummaryList']
 
-    for cert in acm_certs:
-        c = acm_client.describe_certificate(CertificateArn=cert['CertificateArn'])['Certificate']
+        for cert in server_certs:
+            e = {
+                'id': entity_id('cert-iam-{}[{}:{}]'.format(cert['ServerCertificateName'], acc, region)),
+                'type': 'certificate',
+                'infrastructure_account': acc,
+                'region': region,
+                'created_by': 'agent',
+                'certificate_type': 'iam',
+                'name': cert['ServerCertificateName'],
+                'arn': cert['Arn'],
+                'status': 'ISSUED',
+                'expiration': datetime.isoformat(cert['Expiration']),
+            }
 
-        e = {
-            'id': entity_id('cert-acm-{}[{}:{}]'.format(c['DomainName'], acc, region)),
-            'type': 'certificate',
-            'infrastructure_account': acc,
-            'region': region,
-            'created_by': 'agent',
-            'certificate_type': 'acm',
-            'name': c['DomainName'],
-            'arn': c['CertificateArn'],
-            'status': c['Status'],
-            'expiration': datetime.isoformat(c['NotAfter']) if 'NotAfter' in c else '',
-        }
+            entities.append(e)
 
-        entities.append(e)
+        for cert in acm_certs:
+            c = acm_client.describe_certificate(CertificateArn=cert['CertificateArn'])['Certificate']
+
+            e = {
+                'id': entity_id('cert-acm-{}[{}:{}]'.format(c['DomainName'], acc, region)),
+                'type': 'certificate',
+                'infrastructure_account': acc,
+                'region': region,
+                'created_by': 'agent',
+                'certificate_type': 'acm',
+                'name': c['DomainName'],
+                'arn': c['CertificateArn'],
+                'status': c['Status'],
+                'expiration': datetime.isoformat(c['NotAfter']) if 'NotAfter' in c else '',
+            }
+
+            entities.append(e)
+    except:
+        logger.exception('Failed while retrieving IAM/ACM certificates, IAM role has no access?')
 
     return entities
 
