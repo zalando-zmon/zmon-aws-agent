@@ -5,7 +5,8 @@ from mock import MagicMock, call
 import zmon_aws_agent.aws as aws
 
 from conftest import ThrottleError
-from conftest import ACCOUNT, REGION, get_elc_cluster, get_autoscaling, get_elbs, get_elbs_application, get_apps
+from conftest import ACCOUNT, REGION
+from conftest import get_elc_cluster, get_autoscaling, get_elbs, get_elbs_application, get_apps, get_certificates
 
 
 def get_boto_client(monkeypatch, *args):
@@ -259,6 +260,32 @@ def test_aws_get_running_elbs_application(monkeypatch, exc):
     elb_client.get_paginator.assert_has_calls(calls)
 
     boto.assert_called_with('elbv2', region_name=REGION)
+
+
+@pytest.mark.parametrize('fail', [False, True])
+def test_aws_get_certificates(monkeypatch, fail):
+    resp_iam, resp_acm, acm_certs, result = get_certificates()
+
+    iam_client = MagicMock()
+    iam_client.list_server_certificates.return_value = resp_iam
+
+    acm_client = MagicMock()
+    if not fail:
+        acm_client.list_certificates.return_value = resp_acm
+        acm_client.describe_certificate.side_effect = acm_certs
+    else:
+        result = []
+        acm_client.list_certificates.side_effect = RuntimeError
+
+    monkeypatch.setattr('zmon_aws_agent.aws.call_and_retry', call_retry_mock)
+    boto = get_boto_client(monkeypatch, iam_client, acm_client)
+
+    res = aws.get_certificates(REGION, ACCOUNT)
+
+    assert res == result
+
+    calls = [call('iam', region_name=REGION), call('acm', region_name=REGION)]
+    boto.assert_has_calls(calls)
 
 
 def test_aws_get_running_apps(monkeypatch):
