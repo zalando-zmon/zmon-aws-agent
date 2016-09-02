@@ -203,7 +203,7 @@ def get_running_apps(region):
                 else:
                     ins['events'] = []
 
-                stack_version = user_data['application_version']
+                stack_version = user_data.get('application_version', 'NOT_SET')
                 if 'StackVersion' in tags:
                     ins['stack'] = tags['Name']
                     stack_version = tags['StackVersion']
@@ -217,7 +217,10 @@ def get_running_apps(region):
                                                                    region))
 
                 ins['application_id'] = user_data['application_id']
-                ins['application_version'] = user_data['application_version']
+
+                if 'application_version' in user_data:
+                    ins['application_version'] = user_data['application_version']
+
                 ins['source'] = user_data['source']
 
                 if 'ports' in user_data:
