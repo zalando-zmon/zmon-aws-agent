@@ -219,7 +219,7 @@ def test_aws_get_running_elbs_classic(monkeypatch, exc):
 
 @pytest.mark.parametrize('exc', [True, ThrottleError(), ThrottleError(throttling=False), RuntimeError])
 def test_aws_get_running_elbs_application(monkeypatch, exc):
-    resp, tags, groups, health, result = get_elbs_application()
+    resp, tags, listeners, groups, health, result = get_elbs_application()
 
     fail = False
 
@@ -234,6 +234,7 @@ def test_aws_get_running_elbs_application(monkeypatch, exc):
     elb_client.get_paginator.side_effect = [elb_pagintor, elb_target_groups_pagintor]
 
     elb_client.describe_tags.return_value = tags
+    elb_client.describe_listeners.return_value = listeners
 
     elb_client.describe_target_health.return_value = health
     if exc is not True:

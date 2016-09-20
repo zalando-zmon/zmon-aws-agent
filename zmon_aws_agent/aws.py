@@ -288,6 +288,8 @@ def get_running_elbs_classic(region, acc):
     for e in elbs:
         name = e['LoadBalancerName']
 
+        protocol = e['ListenerDescriptions'][0]['Listener']['Protocol']
+
         lb = {
             'id': entity_id('elb-{}[{}:{}]'.format(name, acc, region)),
             'type': 'elb',
@@ -299,7 +301,7 @@ def get_running_elbs_classic(region, acc):
             'host': e['DNSName'],
             'name': name,
             'scheme': e['Scheme'],
-            'url': 'https://{}'.format(e['DNSName']),
+            'url': '{}://{}'.format(protocol.lower(), e['DNSName']),
             'members': len(e['Instances']),
         }
 
@@ -354,6 +356,10 @@ def get_running_elbs_application(region, acc):
         target_groups = call_and_retry(
             lambda: tg_paginator.paginate(LoadBalancerArn=arn).build_full_result()['TargetGroups'])
 
+        listeners = elb_client.describe_listeners(LoadBalancerArn=arn)['Listeners']
+
+        protocol = listeners[0]['Protocol']
+
         lb = {
             'id': entity_id('elb-{}[{}:{}]'.format(name, acc, region)),
             'type': 'elb',
@@ -366,7 +372,7 @@ def get_running_elbs_application(region, acc):
             'cloudwatch_name': '/'.join(arn.rsplit('/')[-3:]),  # name used by Cloudwatch!
             'name': name,
             'scheme': e['Scheme'],
-            'url': 'https://{}'.format(e['DNSName']),
+            'url': '{}://{}'.format(protocol.lower(), e['DNSName']),
             'target_groups': len(target_groups),
             'target_groups_arns': [tg['TargetGroupArn'] for tg in target_groups]
         }

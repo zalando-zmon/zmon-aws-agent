@@ -125,6 +125,7 @@ def get_elbs():
                 'DNSName': 'elb-1.example.org',
                 'Scheme': 'https',
                 'Instances': ['ins-1', 'ins-2', 'ins-3'],
+                'ListenerDescriptions': [{'Listener': {'Protocol': 'HTTPS'}}],
             },
         ]
     }
@@ -167,9 +168,13 @@ def get_elbs_application():
                 'LoadBalancerArn': 'arn-/app/elb-1/123456',
                 'LoadBalancerName': 'elb-1',
                 'DNSName': 'elb-1.example.org',
-                'Scheme': 'https',
+                'Scheme': 'internal',
             }
         ]
+    }
+
+    listeners = {
+        'Listeners': [{'Protocol': 'HTTP'}]
     }
 
     tags = {'TagDescriptions': [{'ResourceArn': 'arn-/app/elb-1/123456', 'Tags': []}]}
@@ -196,8 +201,8 @@ def get_elbs_application():
             'host': 'elb-1.example.org',
             'cloudwatch_name': 'app/elb-1/123456',
             'name': 'elb-1',
-            'scheme': 'https',
-            'url': 'https://elb-1.example.org',
+            'scheme': 'internal',
+            'url': 'http://elb-1.example.org',
             'members': 3,
             'active_members': 2,
             'target_groups': 1,
@@ -205,7 +210,7 @@ def get_elbs_application():
         }
     ]
 
-    return resp, tags, groups, health, result
+    return resp, tags, listeners, groups, health, result
 
 
 def get_apps():
