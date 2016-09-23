@@ -222,7 +222,7 @@ def get_running_apps(region):
                     ins['application_version'] = user_data['application_version']
 
                 ins['source'] = user_data['source']
-                ins['source_base'] = ins['source'].split(":")[:1]
+                ins['source_base'] = "".join(ins['source'].split(":")[:1])
 
                 if 'ports' in user_data:
                     ins['ports'] = user_data['ports']
