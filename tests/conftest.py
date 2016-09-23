@@ -245,7 +245,7 @@ def get_apps():
 
     user_data = [
         {
-            'application_id': 'app-1', 'source': 'https://src', 'ports': [2222], 'runtime': 'docker',
+            'application_id': 'app-1', 'source': 'registry.opensource.zalan.do/stups/zmon-aws-agent:cd81', 'ports': [2222], 'runtime': 'docker',
             'application_version': '1.0',
         },
         {
@@ -262,7 +262,8 @@ def get_apps():
             'ip': '192.168.20.16', 'host': '192.168.20.16', 'public_ip': '194.194.20.16',
             'instance_type': 't2.medium', 'aws_id': 'ins-1',
             'state_reason': 'state', 'stack': 'stack-1', 'stack_version': 'stack-1-1.0',
-            'resource_id': 'cd-app', 'application_id': 'app-1', 'application_version': '1.0', 'source': 'https://src',
+            'resource_id': 'cd-app', 'application_id': 'app-1', 'application_version': '1.0',
+            'source': 'registry.opensource.zalan.do/stups/zmon-aws-agent:cd81', 'source_base': 'registry.opensource.zalan.do/stups/zmon-aws-agent',
             'ports': [2222], 'runtime': 'docker', 'aws:cloudformation:logical_id': 'cd-app', 'name': 'stack-1',
             'events': ['ev-1', 'ev-2'],
         },
