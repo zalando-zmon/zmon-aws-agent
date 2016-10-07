@@ -435,21 +435,25 @@ def get_auto_scaling_groups(region, acc):
 
         add_traffic_tags_to_entity(sg)
 
-        instance_ids = [i['InstanceId'] for i in g['Instances'] if i['LifecycleState'] == 'InService']
-
-        ec2_paginator = ec2_client.get_paginator('describe_instances')
-
-        reservations = call_and_retry(
-            lambda: ec2_paginator.paginate(InstanceIds=instance_ids).build_full_result()['Reservations'])
-
         sg['instances'] = []
-        for r in reservations:
-            for i in r['Instances']:
-                if 'PrivateIpAddress' in i:
-                    sg['instances'].append({
-                        'aws_id': i['InstanceId'],
-                        'ip': i['PrivateIpAddress'],
-                    })
+        instance_ids = [i['InstanceId'] for i in g['Instances'] if i['LifecycleState'] == 'InService']
+        #
+        # Avoid describing instances when there's nothing to filter
+        # for: that would claim *every* instance in the account.
+        #
+        if instance_ids:
+            ec2_paginator = ec2_client.get_paginator('describe_instances')
+
+            reservations = call_and_retry(
+                lambda: ec2_paginator.paginate(InstanceIds=instance_ids).build_full_result()['Reservations'])
+
+            for r in reservations:
+                for i in r['Instances']:
+                    if 'PrivateIpAddress' in i:
+                        sg['instances'].append({
+                            'aws_id': i['InstanceId'],
+                            'ip': i['PrivateIpAddress'],
+                        })
         groups.append(sg)
 
     return groups
