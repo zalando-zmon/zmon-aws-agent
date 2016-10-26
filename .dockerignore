@@ -3,6 +3,7 @@
 .target
 .git
 .cache
+.tox
 build/
 .coverage
 coverage.xml
