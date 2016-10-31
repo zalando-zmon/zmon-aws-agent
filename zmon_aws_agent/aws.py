@@ -102,13 +102,14 @@ def populate_dns_data():
 
 
 def get_weight_for_stack(stack_name, stack_version):
-    if len(DNS_ZONE_CACHE.keys()) != 1:
-        logger.info('Multiple hosted zones not supported - skipping weight')
-        return None
+    records = []
 
-    zone = list(DNS_ZONE_CACHE.keys())[0]
+    for zone in DNS_ZONE_CACHE.keys():
+        records = [r for r in DNS_RR_CACHE_ZONE[zone] if r['SetIdentifier'] == stack_name + '-' + stack_version]
 
-    records = list(filter(lambda x: x['SetIdentifier'] == stack_name + '-' + stack_version, DNS_RR_CACHE_ZONE[zone]))
+        if records:
+            break
+
     if len(records) != 1:
         return None
 
