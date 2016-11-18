@@ -235,7 +235,15 @@ def get_apps():
                     },
                     {
                         'State': {'Name': 'terminated'},
-                    }
+                    },
+                    {
+                        'State': {'Name': 'running'},
+                        'PrivateIpAddress': '192.168.20.17',
+                        'InstanceType': 't2.medium', 'InstanceId': 'ins-3', 'StateTransitionReason': 'state',
+                        'Tags': [
+                            {'Key': 'Name', 'Value': 'myname'}
+                        ]
+                    },
                 ],
             }
         ]
@@ -273,6 +281,13 @@ def get_apps():
             'type': 'instance', 'created_by': 'agent', 'region': REGION, 'infrastructure_account': 'aws:1234',
             'ip': '192.168.20.16', 'host': '192.168.20.16',
             'instance_type': 't2.medium', 'aws_id': 'ins-2',
+        },
+        {
+            'id': 'myname-{}[{}:{}]'.format(get_hash('192.168.20.17'), ACCOUNT, REGION),
+            'type': 'instance', 'created_by': 'agent', 'region': REGION, 'infrastructure_account': 'aws:1234',
+            'ip': '192.168.20.17', 'host': '192.168.20.17',
+            'instance_type': 't2.medium', 'aws_id': 'ins-3',
+            'name': 'myname'
         }
     ]
 
