@@ -244,7 +244,7 @@ def get_running_apps(region):
                 result.append(ins)
 
             else:
-                ins['id'] = entity_id('{}-{}[aws:{}:{}]'.format(i['InstanceId'], get_hash(i['PrivateIpAddress'] + ''),
+                ins['id'] = entity_id('{}-{}[aws:{}:{}]'.format(tags.get('Name') or i['InstanceId'], get_hash(i['PrivateIpAddress'] + ''),
                                                                 owner, region))
 
                 # `tags` is already a dict, but we need the raw list

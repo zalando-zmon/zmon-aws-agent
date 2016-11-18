@@ -287,6 +287,7 @@ def get_apps():
             'type': 'instance', 'created_by': 'agent', 'region': REGION, 'infrastructure_account': 'aws:1234',
             'ip': '192.168.20.17', 'host': '192.168.20.17',
             'instance_type': 't2.medium', 'aws_id': 'ins-3',
+            'name': 'myname'
         }
     ]
 
