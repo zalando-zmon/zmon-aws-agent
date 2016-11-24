@@ -223,6 +223,7 @@ def get_apps():
                         'State': {'Name': 'running'},
                         'PrivateIpAddress': '192.168.20.16', 'PublicIpAddress': '194.194.20.16',
                         'InstanceType': 't2.medium', 'InstanceId': 'ins-1', 'StateTransitionReason': 'state',
+                        'InstanceLifecycle': 'spot',
                         'Tags': [
                             {'Key': 'Name', 'Value': 'stack-1'}, {'Key': 'StackVersion', 'Value': 'stack-1-1.0'},
                             {'Key': 'aws:cloudformation:logical-id', 'Value': 'cd-app'}
@@ -274,18 +275,18 @@ def get_apps():
             'resource_id': 'cd-app', 'application_id': 'app-1', 'application_version': '1.0',
             'source': 'registry/stups/zmon-aws-agent:cd81', 'source_base': 'registry/stups/zmon-aws-agent',
             'ports': [2222], 'runtime': 'docker', 'aws:cloudformation:logical_id': 'cd-app', 'name': 'stack-1',
-            'events': [],
+            'events': [], 'spot_instance': True,
         },
         {
             'id': 'ins-2-{}[{}:{}]'.format(get_hash('192.168.20.16'), ACCOUNT, REGION),
             'type': 'instance', 'created_by': 'agent', 'region': REGION, 'infrastructure_account': 'aws:1234',
-            'ip': '192.168.20.16', 'host': '192.168.20.16',
+            'ip': '192.168.20.16', 'host': '192.168.20.16', 'spot_instance': False,
             'instance_type': 't2.medium', 'aws_id': 'ins-2',
         },
         {
             'id': 'myname-{}[{}:{}]'.format(get_hash('192.168.20.17'), ACCOUNT, REGION),
             'type': 'instance', 'created_by': 'agent', 'region': REGION, 'infrastructure_account': 'aws:1234',
-            'ip': '192.168.20.17', 'host': '192.168.20.17',
+            'ip': '192.168.20.17', 'host': '192.168.20.17', 'spot_instance': False,
             'instance_type': 't2.medium', 'aws_id': 'ins-3',
             'name': 'myname'
         }

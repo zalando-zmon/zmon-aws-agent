@@ -178,6 +178,8 @@ def get_running_apps(region):
 
             tags = get_tags_dict(i.get('Tags', []))
 
+            is_spot_instance = True if i.get('InstanceLifecycle', '') == 'spot' else False
+
             ins = {
                 'type': 'instance',
                 'created_by': 'agent',
@@ -185,6 +187,7 @@ def get_running_apps(region):
                 'ip': i['PrivateIpAddress'],
                 'host': i['PrivateIpAddress'],
                 'instance_type': i['InstanceType'],
+                'spot_instance': is_spot_instance,
                 'aws_id': i['InstanceId'],
                 'infrastructure_account': 'aws:{}'.format(owner),
             }
