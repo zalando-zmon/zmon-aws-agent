@@ -23,6 +23,8 @@ DNS_RR_CACHE_ZONE = {}
 
 INVALID_ENTITY_CHARS_PATTERN = re.compile('[^a-zA-Z0-9@._:\[\]-]')
 
+MAX_PAGE = 10000
+
 logger = logging.getLogger(__name__)
 
 
@@ -148,7 +150,7 @@ def get_running_apps(region):
 
     paginator = aws_client.get_paginator('describe_instances')
     rs = call_and_retry(
-        lambda: paginator.paginate(PaginationConfig={'MaxItems': 1000}).build_full_result()['Reservations'])
+        lambda: paginator.paginate(PaginationConfig={'MaxItems': MAX_PAGE}).build_full_result()['Reservations'])
 
     result = []
 
@@ -196,13 +198,15 @@ def get_running_apps(region):
             if isinstance(user_data, dict) and 'application_id' in user_data:
                 ins['state_reason'] = i['StateTransitionReason']
 
-                instance_status_resp = call_and_retry(aws_client.describe_instance_status,
-                                                      InstanceIds=[i['InstanceId']])
+                # TODO: Fix this! Disable events for now!!
+                # see also: https://github.com/zalando-zmon/zmon-aws-agent/issues/22
+                # instance_status_resp = call_and_retry(aws_client.describe_instance_status,
+                #                                       InstanceIds=[i['InstanceId']])
 
-                if 'Events' in instance_status_resp['InstanceStatuses'][0]:
-                    ins['events'] = instance_status_resp['InstanceStatuses'][0]['Events']
-                else:
-                    ins['events'] = []
+                # if 'Events' in instance_status_resp['InstanceStatuses'][0]:
+                #     ins['events'] = instance_status_resp['InstanceStatuses'][0]['Events']
+                # else:
+                ins['events'] = []
 
                 stack_version = user_data.get('application_version', 'NOT_SET')
                 if 'StackVersion' in tags:
@@ -269,7 +273,8 @@ def get_running_elbs_classic(region, acc):
     paginator = elb_client.get_paginator('describe_load_balancers')
 
     elbs = call_and_retry(
-        lambda: paginator.paginate(PaginationConfig={'MaxItems': 1000}).build_full_result()['LoadBalancerDescriptions'])
+        lambda: paginator.paginate(
+            PaginationConfig={'MaxItems': MAX_PAGE}).build_full_result()['LoadBalancerDescriptions'])
 
     # get all the tags and cache them in a dict
     elb_names = [e['LoadBalancerName'] for e in elbs]
@@ -339,7 +344,7 @@ def get_running_elbs_application(region, acc):
     paginator = elb_client.get_paginator('describe_load_balancers')
 
     elbs = call_and_retry(
-        lambda: paginator.paginate(PaginationConfig={'MaxItems': 1000}).build_full_result()['LoadBalancers'])
+        lambda: paginator.paginate(PaginationConfig={'MaxItems': MAX_PAGE}).build_full_result()['LoadBalancers'])
 
     elb_arns = [e['LoadBalancerArn'] for e in elbs]
 
@@ -417,7 +422,7 @@ def get_auto_scaling_groups(region, acc):
     paginator = as_client.get_paginator('describe_auto_scaling_groups')
 
     asgs = call_and_retry(
-        lambda: paginator.paginate(PaginationConfig={'MaxItems': 1000}).build_full_result()['AutoScalingGroups'])
+        lambda: paginator.paginate(PaginationConfig={'MaxItems': MAX_PAGE}).build_full_result()['AutoScalingGroups'])
 
     for g in asgs:
         sg = {
@@ -467,7 +472,7 @@ def get_elasticache_nodes(region, acc):
 
     elcs = call_and_retry(
         lambda: paginator.paginate(
-            ShowCacheNodeInfo=True, PaginationConfig={'MaxItems': 1000}).build_full_result()['CacheClusters'])
+            ShowCacheNodeInfo=True, PaginationConfig={'MaxItems': MAX_PAGE}).build_full_result()['CacheClusters'])
 
     nodes = []
 
@@ -513,7 +518,7 @@ def get_dynamodb_tables(region, acc):
         paginator = ddb.get_paginator('list_tables')
 
         ts = call_and_retry(
-            lambda: paginator.paginate(PaginationConfig={'MaxItems': 1000}).build_full_result()['TableNames'])
+            lambda: paginator.paginate(PaginationConfig={'MaxItems': MAX_PAGE}).build_full_result()['TableNames'])
 
         tables = []
 
@@ -549,7 +554,8 @@ def get_rds_instances(region, acc):
 
         paginator = rds_client.get_paginator('describe_db_instances')
 
-        instances = call_and_retry(lambda: paginator.paginate(PaginationConfig={'MaxItems': 1000}).build_full_result())
+        instances = call_and_retry(lambda: paginator.paginate(
+            PaginationConfig={'MaxItems': MAX_PAGE}).build_full_result())
 
         for i in instances['DBInstances']:
 
