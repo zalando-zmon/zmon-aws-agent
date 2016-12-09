@@ -192,6 +192,15 @@ def get_running_apps(region):
                 'infrastructure_account': 'aws:{}'.format(owner),
             }
 
+            i["block_devices"] = {}
+            for device in i.get("BlockDeviceMappings", []):
+                if "Ebs" in device:
+                    i["block_devices"][device["DeviceName"]] = {
+                        "volume_id": device["Ebs"]["VolumeId"],
+                        "volume_type": "ebs",
+                        "attach_time": device["Ebs"]["AttachTime"]
+                    }
+
             if 'PublicIpAddress' in i:
                 public_ip = i.get('PublicIpAddress')
                 if public_ip != '' and public_ip is not None:
