@@ -198,7 +198,7 @@ def get_running_apps(region):
                     ins["block_devices"][device["DeviceName"]] = {
                         "volume_id": device["Ebs"]["VolumeId"],
                         "volume_type": "ebs",
-                        "attach_time": device["Ebs"]["AttachTime"]
+                        "attach_time": str(device["Ebs"]["AttachTime"])
                     }
 
             if 'PublicIpAddress' in i:
