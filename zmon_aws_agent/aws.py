@@ -197,7 +197,7 @@ def get_running_apps(region):
                 if "Ebs" in device:
                     i["block_devices"][device["DeviceName"]] = {
                         "volume_id": device["Ebs"]["VolumeId"],
-                        "volume_type":"ebs",
+                        "volume_type": "ebs",
                         "attach_time": device["Ebs"]["AttachTime"]
                     }
 
