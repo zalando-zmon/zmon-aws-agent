@@ -23,6 +23,9 @@ DNS_RR_CACHE_ZONE = {}
 
 INVALID_ENTITY_CHARS_PATTERN = re.compile('[^a-zA-Z0-9@._:\[\]-]')
 
+# hack, to identify kubernetes ELBs
+KUBE_SERVICE_TAG = 'kubernetes.io/service_name'
+
 MAX_PAGE = 10000
 
 logger = logging.getLogger(__name__)
@@ -144,6 +147,9 @@ def assign_properties_from_tags(obj, tags):
         if key not in obj:
             obj[key] = tag['Value']
 
+            if key == KUBE_SERVICE_TAG:
+                obj['kube_service_name'] = tag['Value'].split('/')[-1]
+
 
 def get_running_apps(region):
     aws_client = boto3.client('ec2', region_name=region)
@@ -192,13 +198,13 @@ def get_running_apps(region):
                 'infrastructure_account': 'aws:{}'.format(owner),
             }
 
-            ins["block_devices"] = {}
-            for device in i.get("BlockDeviceMappings", []):
-                if "Ebs" in device:
-                    ins["block_devices"][device["DeviceName"]] = {
-                        "volume_id": device["Ebs"]["VolumeId"],
-                        "volume_type": "ebs",
-                        "attach_time": str(device["Ebs"]["AttachTime"])
+            ins['block_devices'] = {}
+            for device in i.get('BlockDeviceMappings', []):
+                if 'Ebs' in device:
+                    ins['block_devices'][device['DeviceName']] = {
+                        'volume_id': device['Ebs']['VolumeId'],
+                        'volume_type': 'ebs',
+                        'attach_time': str(device['Ebs']['AttachTime'])
                     }
 
             if 'PublicIpAddress' in i:

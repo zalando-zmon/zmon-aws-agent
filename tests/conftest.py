@@ -275,20 +275,19 @@ def get_apps():
             'resource_id': 'cd-app', 'application_id': 'app-1', 'application_version': '1.0',
             'source': 'registry/stups/zmon-aws-agent:cd81', 'source_base': 'registry/stups/zmon-aws-agent',
             'ports': [2222], 'runtime': 'docker', 'aws:cloudformation:logical_id': 'cd-app', 'name': 'stack-1',
-            'events': [], 'spot_instance': True,
+            'events': [], 'spot_instance': True, 'block_devices': {},
         },
         {
             'id': 'ins-2-{}[{}:{}]'.format(get_hash('192.168.20.16'), ACCOUNT, REGION),
             'type': 'instance', 'created_by': 'agent', 'region': REGION, 'infrastructure_account': 'aws:1234',
             'ip': '192.168.20.16', 'host': '192.168.20.16', 'spot_instance': False,
-            'instance_type': 't2.medium', 'aws_id': 'ins-2',
+            'instance_type': 't2.medium', 'aws_id': 'ins-2', 'block_devices': {},
         },
         {
             'id': 'myname-{}[{}:{}]'.format(get_hash('192.168.20.17'), ACCOUNT, REGION),
             'type': 'instance', 'created_by': 'agent', 'region': REGION, 'infrastructure_account': 'aws:1234',
             'ip': '192.168.20.17', 'host': '192.168.20.17', 'spot_instance': False,
-            'instance_type': 't2.medium', 'aws_id': 'ins-3',
-            'name': 'myname'
+            'instance_type': 't2.medium', 'aws_id': 'ins-3', 'name': 'myname', 'block_devices': {},
         }
     ]
 
