@@ -379,12 +379,15 @@ def get_running_elbs_application(region, acc):
         name = e['LoadBalancerName']
 
         tg_paginator = elb_client.get_paginator('describe_target_groups')
-        target_groups = call_and_retry(
-            lambda: tg_paginator.paginate(LoadBalancerArn=arn).build_full_result()['TargetGroups'])
+        try:
+            target_groups = call_and_retry(
+                lambda: tg_paginator.paginate(LoadBalancerArn=arn).build_full_result()['TargetGroups'])
+        except:
+            target_groups = []
 
         listeners = elb_client.describe_listeners(LoadBalancerArn=arn)['Listeners']
 
-        protocol = listeners[0]['Protocol']
+        protocol = listeners[0]['Protocol'] if listeners else ''
 
         lb = {
             'id': entity_id('elb-{}[{}:{}]'.format(name, acc, region)),
@@ -398,7 +401,7 @@ def get_running_elbs_application(region, acc):
             'cloudwatch_name': '/'.join(arn.rsplit('/')[-3:]),  # name used by Cloudwatch!
             'name': name,
             'scheme': e['Scheme'],
-            'url': '{}://{}'.format(protocol.lower(), e['DNSName']),
+            'url': '{}://{}'.format(protocol.lower(), e['DNSName']) if protocol else '',
             'target_groups': len(target_groups),
             'target_groups_arns': [tg['TargetGroupArn'] for tg in target_groups]
         }
