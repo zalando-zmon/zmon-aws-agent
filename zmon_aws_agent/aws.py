@@ -679,3 +679,72 @@ def get_apps_from_entities(instances, account, region):
     } for a in instances if 'application_id' in a]
 
     return applications
+
+
+def get_limits(region, acc, apps, elbs):
+    limits = {
+        'ec2-max-instances': 20,
+        'ec2-used-instances': len([a for a in apps if a['type'] == 'instance']),
+        'elb-max-count': 20,
+        'elb-used-count': len(elbs),
+    }
+    ec2 = boto3.client('ec2', region_name=region)
+    rds = boto3.client('rds', region_name=region)
+    asg = boto3.client('autoscaling', region_name=region)
+    iam = boto3.client('iam', region_name=region)
+
+    try:
+        attrs = ec2.describe_account_attributes()['AccountAttributes']
+        for attr in attrs:
+            if attr['AttributeName'] == 'max-instances':
+                limits['ec2-max-instances'] = int(attr['AttributeValues'][0]['AttributeValue'])
+    except Exception as e:
+        logger.error('Failed to query EC2 account attributes {}'.format(e))
+
+    try:
+        quota_names = ('ReservedDBInstances', 'AllocatedStorage')
+        quotas = rds.describe_account_attributes()['AccountQuotas']
+        q = {
+            q['AccountQuotaName']: q for q in quotas if q['AccountQuotaName'] in quota_names
+        }
+        limits['rds-max-reserved'] = q['ReservedDBInstances']['Max']
+        limits['rds-used-reserved'] = q['ReservedDBInstances']['Used']
+        limits['rds-max-allocated'] = q['AllocatedStorage']['Max']
+        limits['rds-used-allocated'] = q['AllocatedStorage']['Used']
+    except Exception as e:
+        logger.error('Failed to query RDS account attributes {}'.format(e))
+
+    try:
+        asg_limits = asg.describe_account_limits()
+        limits['asg-max-groups'] = asg_limits['MaxNumberOfAutoScalingGroups']
+        limits['asg-max-launch-configurations'] = asg_limits['MaxNumberOfLaunchConfigurations']
+        limits['asg-used-groups'] = asg_limits['NumberOfAutoScalingGroups']
+        limits['asg-used-launch-configurations'] = asg_limits['NumberOfLaunchConfigurations']
+    except Exception as e:
+        logger.error('Failed to query ASG limits {}'.format(e))
+
+    try:
+        iam_limits = iam.get_account_summary()['SummaryMap']
+        limits['iam-used-server-certificates'] = iam_limits['ServerCertificates']
+        limits['iam-max-server-certificates'] = iam_limits['ServerCertificatesQuota']
+
+        limits['iam-used-instance-profiles'] = iam_limits['InstanceProfiles']
+        limits['iam-max-instance-profiles'] = iam_limits['InstanceProfilesQuota']
+
+        limits['iam-used-policies'] = iam_limits['Policies']
+        limits['iam-max-policies'] = iam_limits['PoliciesQuota']
+
+    except Exception as e:
+        logger.error('Failed to query IAM account summary {}'.format(e))
+
+    entity = {
+        'id': entity_id('aws-limits[{}:{}]'.format(acc, region)),
+        'type': 'aws_limits',
+        'created_by': 'agent',
+        'region': region,
+        'infrastructure_account': acc,
+    }
+
+    entity.update(limits)
+
+    return entity

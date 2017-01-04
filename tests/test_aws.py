@@ -361,3 +361,115 @@ def test_aws_populate_dns(monkeypatch):
     route53_client.list_resource_record_sets.assert_has_calls(calls, any_order=True)
 
     boto.assert_called_with('route53')
+
+
+@pytest.mark.parametrize('fail', [False, True])
+def test_aws_get_limits(monkeypatch, fail):
+    ec2 = MagicMock()
+    account_attrs = {
+        'AccountAttributes': [
+            {'AttributeName': 'max-instances', 'AttributeValues': [{'AttributeValue': '20'}]},
+            {'AttributeName': 'other', 'AttributeValues': [{'AttributeValue': '20'}]}
+        ]
+    }
+    if not fail:
+        ec2.describe_account_attributes.return_value = account_attrs
+    else:
+        ec2.describe_account_attributes.side_effect = Exception
+
+    rds = MagicMock()
+    account_attrs = {
+        'AccountQuotas': [
+            {'AccountQuotaName': 'ReservedDBInstances', 'Max': 100, 'Used': 10},
+            {'AccountQuotaName': 'AllocatedStorage', 'Max': 100, 'Used': 10},
+            {'AccountQuotaName': 'other', 'Max': 100, 'Used': 10},
+        ]
+    }
+    if not fail:
+        rds.describe_account_attributes.return_value = account_attrs
+    else:
+        rds.describe_account_attributes.side_effect = Exception
+
+    asg = MagicMock()
+    account_limits = {
+        'MaxNumberOfAutoScalingGroups': 100,
+        'MaxNumberOfLaunchConfigurations': 100,
+        'NumberOfAutoScalingGroups': 20,
+        'NumberOfLaunchConfigurations': 20,
+    }
+    if not fail:
+        asg.describe_account_limits.return_value = account_limits
+    else:
+        asg.describe_account_limits.side_effect = Exception
+
+    iam = MagicMock()
+    account_summary = {
+        'SummaryMap': {
+            'ServerCertificates': 1,
+            'ServerCertificatesQuota': 20,
+            'InstanceProfiles': 10,
+            'InstanceProfilesQuota': 20,
+            'Policies': 2,
+            'PoliciesQuota': 10,
+        }
+    }
+    if not fail:
+        iam.get_account_summary.return_value = account_summary
+    else:
+        iam.get_account_summary.side_effect = Exception
+
+    boto = get_boto_client(monkeypatch, ec2, rds, asg, iam)
+
+    apps = [{'type': 'instance'}, {'type': 'instance'}, {'type': 'cassandra'}]
+    elbs = [{'type': 'elb'}, {'type': 'elb'}, {'type': 'elb'}]
+
+    limits = aws.get_limits(REGION, ACCOUNT, apps, elbs)
+
+    if not fail:
+        expected = {
+            'asg-max-groups': 100,
+            'asg-max-launch-configurations': 100,
+            'asg-used-groups': 20,
+            'asg-used-launch-configurations': 20,
+            'created_by': 'agent',
+            'ec2-max-instances': 20,
+            'ec2-used-instances': 2,
+            'elb-max-count': 20,
+            'elb-used-count': 3,
+            'iam-max-instance-profiles': 20,
+            'iam-max-policies': 10,
+            'iam-max-server-certificates': 20,
+            'iam-used-instance-profiles': 10,
+            'iam-used-policies': 2,
+            'iam-used-server-certificates': 1,
+            'id': 'aws-limits[aws:1234:eu-central-1]',
+            'infrastructure_account': 'aws:1234',
+            'rds-max-allocated': 100,
+            'rds-max-reserved': 100,
+            'rds-used-allocated': 10,
+            'rds-used-reserved': 10,
+            'region': 'eu-central-1',
+            'type': 'aws_limits'
+        }
+    else:
+        expected = {
+            'created_by': 'agent',
+            'ec2-max-instances': 20,
+            'ec2-used-instances': 2,
+            'elb-max-count': 20,
+            'elb-used-count': 3,
+            'id': 'aws-limits[aws:1234:eu-central-1]',
+            'infrastructure_account': 'aws:1234',
+            'region': 'eu-central-1',
+            'type': 'aws_limits'
+        }
+
+    assert expected == limits
+
+    calls = [
+        call('ec2', region_name=REGION),
+        call('rds', region_name=REGION),
+        call('autoscaling', region_name=REGION),
+        call('iam', region_name=REGION),
+    ]
+    boto.assert_has_calls(calls)
