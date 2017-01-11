@@ -684,7 +684,9 @@ def get_apps_from_entities(instances, account, region):
 def get_limits(region, acc, apps, elbs):
     limits = {
         'ec2-max-instances': 20,
-        'ec2-used-instances': len([a for a in apps if a['type'] == 'instance']),
+        'ec2-used-instances': len([a for a in apps if a['type'] == 'instance' and not a.get('spot_instance', False)]),
+        'ec2-max-spot-instances': 20,  # Assume default max-spot-instances
+        'ec2-used-spot-instances': len([a for a in apps if a['type'] == 'instance' and a.get('spot_instance', False)]),
         'elb-max-count': 20,
         'elb-used-count': len(elbs),
     }

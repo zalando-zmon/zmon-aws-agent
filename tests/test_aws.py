@@ -420,7 +420,9 @@ def test_aws_get_limits(monkeypatch, fail):
 
     boto = get_boto_client(monkeypatch, ec2, rds, asg, iam)
 
-    apps = [{'type': 'instance'}, {'type': 'instance'}, {'type': 'cassandra'}]
+    apps = [
+        {'type': 'instance'}, {'type': 'instance'}, {'type': 'instance', 'spot_instance': True}, {'type': 'cassandra'}
+    ]
     elbs = [{'type': 'elb'}, {'type': 'elb'}, {'type': 'elb'}]
 
     limits = aws.get_limits(REGION, ACCOUNT, apps, elbs)
@@ -434,6 +436,8 @@ def test_aws_get_limits(monkeypatch, fail):
             'created_by': 'agent',
             'ec2-max-instances': 20,
             'ec2-used-instances': 2,
+            'ec2-max-spot-instances': 20,
+            'ec2-used-spot-instances': 1,
             'elb-max-count': 20,
             'elb-used-count': 3,
             'iam-max-instance-profiles': 20,
@@ -456,6 +460,8 @@ def test_aws_get_limits(monkeypatch, fail):
             'created_by': 'agent',
             'ec2-max-instances': 20,
             'ec2-used-instances': 2,
+            'ec2-max-spot-instances': 20,
+            'ec2-used-spot-instances': 1,
             'elb-max-count': 20,
             'elb-used-count': 3,
             'id': 'aws-limits[aws:1234:eu-central-1]',
