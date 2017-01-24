@@ -472,16 +472,20 @@ def get_auto_scaling_groups(region, acc):
         if instance_ids:
             ec2_paginator = ec2_client.get_paginator('describe_instances')
 
-            reservations = call_and_retry(
-                lambda: ec2_paginator.paginate(InstanceIds=instance_ids).build_full_result()['Reservations'])
+            try:
+                reservations = call_and_retry(
+                    lambda: ec2_paginator.paginate(InstanceIds=instance_ids).build_full_result()['Reservations'])
 
-            for r in reservations:
-                for i in r['Instances']:
-                    if 'PrivateIpAddress' in i:
-                        sg['instances'].append({
-                            'aws_id': i['InstanceId'],
-                            'ip': i['PrivateIpAddress'],
-                        })
+                for r in reservations:
+                    for i in r['Instances']:
+                        if 'PrivateIpAddress' in i:
+                            sg['instances'].append({
+                                'aws_id': i['InstanceId'],
+                                'ip': i['PrivateIpAddress'],
+                            })
+            except:
+                logger.error('Failed in retrieving instances for ASG: {}'.format(sg['name']))
+
         groups.append(sg)
 
     return groups
