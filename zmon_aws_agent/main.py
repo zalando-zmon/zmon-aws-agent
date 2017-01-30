@@ -100,7 +100,7 @@ def main():
         try:
             response = requests.get('http://169.254.169.254/latest/meta-data/placement/availability-zone', timeout=2)
         except:
-            logger.error('Region was not specified as a parameter and can not be fetched from instance meta-data!')
+            logger.exception('Region was not specified as a parameter and can not be fetched from instance meta-data!')
             raise
         region = response.text[:-1]
     else:
