@@ -484,7 +484,7 @@ def get_auto_scaling_groups(region, acc):
                                 'ip': i['PrivateIpAddress'],
                             })
             except:
-                logger.error('Failed in retrieving instances for ASG: {}'.format(sg['name']))
+                logger.exception('Failed in retrieving instances for ASG: {}'.format(sg['name']))
 
         groups.append(sg)
 
@@ -565,8 +565,7 @@ def get_dynamodb_tables(region, acc):
 
             tables.append(table)
     except:
-        logger.exception('Got exception while listing dynamodb tables, IAM role not allowed to access?')
-        pass
+        logger.exception('Got exception while listing dynamodb tables, IAM role has no access?')
 
     return tables
 
@@ -704,8 +703,8 @@ def get_limits(region, acc, apps, elbs):
         for attr in attrs:
             if attr['AttributeName'] == 'max-instances':
                 limits['ec2-max-instances'] = int(attr['AttributeValues'][0]['AttributeValue'])
-    except Exception as e:
-        logger.error('Failed to query EC2 account attributes {}'.format(e))
+    except:
+        logger.exception('Failed to query EC2 account attributes!')
 
     try:
         quota_names = ('ReservedDBInstances', 'AllocatedStorage')
@@ -717,8 +716,8 @@ def get_limits(region, acc, apps, elbs):
         limits['rds-used-reserved'] = q['ReservedDBInstances']['Used']
         limits['rds-max-allocated'] = q['AllocatedStorage']['Max']
         limits['rds-used-allocated'] = q['AllocatedStorage']['Used']
-    except Exception as e:
-        logger.error('Failed to query RDS account attributes {}'.format(e))
+    except:
+        logger.exception('Failed to query RDS account attributes!')
 
     try:
         asg_limits = asg.describe_account_limits()
@@ -726,8 +725,8 @@ def get_limits(region, acc, apps, elbs):
         limits['asg-max-launch-configurations'] = asg_limits['MaxNumberOfLaunchConfigurations']
         limits['asg-used-groups'] = asg_limits['NumberOfAutoScalingGroups']
         limits['asg-used-launch-configurations'] = asg_limits['NumberOfLaunchConfigurations']
-    except Exception as e:
-        logger.error('Failed to query ASG limits {}'.format(e))
+    except:
+        logger.exception('Failed to query ASG limits!')
 
     try:
         iam_limits = iam.get_account_summary()['SummaryMap']
@@ -740,8 +739,8 @@ def get_limits(region, acc, apps, elbs):
         limits['iam-used-policies'] = iam_limits['Policies']
         limits['iam-max-policies'] = iam_limits['PoliciesQuota']
 
-    except Exception as e:
-        logger.error('Failed to query IAM account summary {}'.format(e))
+    except:
+        logger.exception('Failed to query IAM account summary!')
 
     entity = {
         'id': entity_id('aws-limits[{}:{}]'.format(acc, region)),
