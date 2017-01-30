@@ -28,7 +28,8 @@ def call_and_retry(fn, *args, **kwargs):
         try:
             return fn(*args, **kwargs)
         except ClientError as e:
-            if e.response['Error']['Code'] == 'Throttling':
+            if e.response['Error']['Code'] == 'Throttling' or \
+               'RequestLimitExceeded' in str(e):
                 if count < MAX_RETRIES:
                     logger.info('Throttling AWS API requests...')
                     time.sleep(get_sleep_duration(count))
