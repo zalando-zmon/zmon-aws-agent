@@ -216,15 +216,15 @@ def get_running_apps(region):
             if isinstance(user_data, dict) and 'application_id' in user_data:
                 ins['state_reason'] = i['StateTransitionReason']
 
-                # TODO: Fix this! Disable events for now!!
-                # see also: https://github.com/zalando-zmon/zmon-aws-agent/issues/22
-                # instance_status_resp = call_and_retry(aws_client.describe_instance_status,
-                #                                       InstanceIds=[i['InstanceId']])
-
-                # if 'Events' in instance_status_resp['InstanceStatuses'][0]:
-                #     ins['events'] = instance_status_resp['InstanceStatuses'][0]['Events']
-                # else:
                 ins['events'] = []
+                try:
+                    instance_status_resp = call_and_retry(aws_client.describe_instance_status,
+                                                          InstanceIds=[i['InstanceId']])
+
+                    if 'Events' in instance_status_resp['InstanceStatuses'][0]:
+                        ins['events'] = instance_status_resp['InstanceStatuses'][0]['Events']
+                except:
+                    logger.exception('Failed to retrieve instance events for instance: {}'.format(i['InstanceId']))
 
                 stack_version = user_data.get('application_version', 'NOT_SET')
                 if 'StackVersion' in tags:
