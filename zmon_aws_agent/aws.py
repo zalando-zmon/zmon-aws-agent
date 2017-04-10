@@ -21,6 +21,7 @@ BASE_DICT = dict((c, i) for i, c in enumerate(BASE_LIST))
 DNS_ZONE_CACHE = {}
 DNS_RR_CACHE_ZONE = {}
 
+INVALID_ENTITY_FIRST_CHAR = re.compile('^[^a-z]+')
 INVALID_ENTITY_CHARS_PATTERN = re.compile('[^a-zA-Z0-9@._:\[\]-]')
 
 # hack, to identify kubernetes ELBs
@@ -32,11 +33,7 @@ logger = logging.getLogger(__name__)
 
 
 def entity_id(s: str) -> str:
-    '''
-    >>> entity_id('a_bc/def[123:456]')
-    'a_bc-def[123:456]'
-    '''
-    return INVALID_ENTITY_CHARS_PATTERN.sub('-', s)
+    return INVALID_ENTITY_CHARS_PATTERN.sub('-', INVALID_ENTITY_FIRST_CHAR.sub('', s))
 
 
 def json_serial(obj):

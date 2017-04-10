@@ -22,6 +22,20 @@ def call_retry_mock(f, *args, **kwargs):
     return f(*args, **kwargs)
 
 
+@pytest.mark.parametrize(
+    'inp,out',
+    (
+        ('a_bc/def[123:456]', 'a_bc-def[123:456]'),
+        ('         a_bc/def[123:456]', 'a_bc-def[123:456]'),
+        ('[a_bc]/def[123:456]', 'a_bc]-def[123:456]'),
+        (']]][[[[a_bc]/def[123:456]', 'a_bc]-def[123:456]'),
+        ('[][][][][]][a_bc]/def[123:456]', 'a_bc]-def[123:456]'),
+    )
+)
+def test_entity_id(monkeypatch, inp, out):
+    assert aws.entity_id(inp) == out
+
+
 @pytest.mark.parametrize('result', [{'AccountAliases': ['alias-1', 'alias-2']}, RuntimeError])
 def test_aws_get_account_alias(monkeypatch, result):
     fail = True
