@@ -148,12 +148,45 @@ def assign_properties_from_tags(obj, tags):
                 obj['kube_service_name'] = tag['Value'].split('/')[-1]
 
 
-def get_running_apps(region):
+def get_instance_devices(aws_client, instance):
+    devices = {}
+
+    for device in instance.get('BlockDeviceMappings', []):
+        if 'Ebs' in device:
+            devices[device['DeviceName']] = {
+                'volume_id': device['Ebs']['VolumeId'],
+                'volume_type': 'ebs',
+                'attach_time': str(device['Ebs']['AttachTime'])
+            }
+
+    return devices
+
+
+def get_instance_events(aws_client, instance):
+    try:
+        instance_status_resp = call_and_retry(aws_client.describe_instance_status,
+                                              InstanceIds=[instance['InstanceId']])
+
+        if 'Events' in instance_status_resp['InstanceStatuses'][0]:
+            return instance_status_resp['InstanceStatuses'][0]['Events']
+    except:
+        logger.exception('Failed to retrieve instance events for instance: {}'.format(instance['InstanceId']))
+
+    return []
+
+
+def get_running_apps(region, existing_entities=None):
     aws_client = boto3.client('ec2', region_name=region)
 
     paginator = aws_client.get_paginator('describe_instances')
     rs = call_and_retry(
         lambda: paginator.paginate(PaginationConfig={'MaxItems': MAX_PAGE}).build_full_result()['Reservations'])
+
+    now = datetime.now()
+
+    existing_instances = (
+        {e['aws_id']: e for e in existing_entities if e['type'] == 'instance'} if existing_entities else {}
+    )
 
     result = []
 
@@ -168,112 +201,103 @@ def get_running_apps(region):
             if str(i['State']['Name']) != 'running':
                 continue
 
-            user_data = None
-            try:
-                user_data_response = call_and_retry(aws_client.describe_instance_attribute,
-                                                    InstanceId=i['InstanceId'],
-                                                    Attribute='userData')
-
-                user_data = base64.b64decode(user_data_response['UserData']['Value'])
-                user_data = yaml.safe_load(user_data)
-            except:
-                pass
-
-            tags = get_tags_dict(i.get('Tags', []))
-
-            is_spot_instance = True if i.get('InstanceLifecycle', '') == 'spot' else False
-
-            ins = {
-                'type': 'instance',
-                'created_by': 'agent',
-                'region': region,
-                'ip': i['PrivateIpAddress'],
-                'host': i['PrivateIpAddress'],
-                'instance_type': i['InstanceType'],
-                'spot_instance': is_spot_instance,
-                'aws_id': i['InstanceId'],
-                'infrastructure_account': 'aws:{}'.format(owner),
-            }
-
-            ins['block_devices'] = {}
-            for device in i.get('BlockDeviceMappings', []):
-                if 'Ebs' in device:
-                    ins['block_devices'][device['DeviceName']] = {
-                        'volume_id': device['Ebs']['VolumeId'],
-                        'volume_type': 'ebs',
-                        'attach_time': str(device['Ebs']['AttachTime'])
-                    }
-
-            if 'PublicIpAddress' in i:
-                public_ip = i.get('PublicIpAddress')
-                if public_ip != '' and public_ip is not None:
-                    ins.update({'public_ip': public_ip})
-
-            # for now limit us to instances with valid user data ( senza/taupage )
-            if isinstance(user_data, dict) and 'application_id' in user_data:
-                ins['state_reason'] = i['StateTransitionReason']
-
-                ins['events'] = []
-                try:
-                    instance_status_resp = call_and_retry(aws_client.describe_instance_status,
-                                                          InstanceIds=[i['InstanceId']])
-
-                    if 'Events' in instance_status_resp['InstanceStatuses'][0]:
-                        ins['events'] = instance_status_resp['InstanceStatuses'][0]['Events']
-                except:
-                    logger.exception('Failed to retrieve instance events for instance: {}'.format(i['InstanceId']))
-
-                stack_version = user_data.get('application_version', 'NOT_SET')
-                if 'StackVersion' in tags:
-                    ins['stack'] = tags['Name']
-                    stack_version = tags['StackVersion']
-                    if 'aws:cloudformation:logical-id' in tags:
-                        ins['resource_id'] = tags['aws:cloudformation:logical-id']
-
-                ins['id'] = entity_id('{}-{}-{}[aws:{}:{}]'.format(user_data['application_id'],
-                                                                   stack_version,
-                                                                   get_hash(i['PrivateIpAddress'] + ''),
-                                                                   owner,
-                                                                   region))
-
-                ins['application_id'] = user_data['application_id']
-
-                if 'application_version' in user_data:
-                    ins['application_version'] = user_data['application_version']
-
-                ins['source'] = user_data['source']
-                ins['source_base'] = ins['source'].split(":")[0]
-
-                if 'ports' in user_data:
-                    ins['ports'] = user_data['ports']
-
-                ins['runtime'] = user_data['runtime']
-
-                # `tags` is already a dict, but we need the raw list
-                assign_properties_from_tags(ins, i.get('Tags', []))
-
-                add_traffic_tags_to_entity(ins)
-
-                if 'Name' in tags and 'cassandra' in tags['Name'] and 'opscenter' not in tags['Name']:
-                    cas = ins.copy()
-                    cas['type'] = 'cassandra'
-                    cas['id'] = entity_id('cas-{}'.format(cas['id']))
-                    result.append(cas)
-
-                result.append(ins)
-
+            if i['InstanceId'] in existing_instances:
+                ins = existing_instances[i['InstanceId']]
             else:
-                ins['id'] = entity_id('{}-{}[aws:{}:{}]'.format(tags.get('Name') or i['InstanceId'],
-                                                                get_hash(i['PrivateIpAddress'] + ''),
-                                                                owner, region))
 
-                # `tags` is already a dict, but we need the raw list
-                assign_properties_from_tags(ins, i.get('Tags', []))
+                user_data = None
+                try:
+                    user_data_response = call_and_retry(aws_client.describe_instance_attribute,
+                                                        InstanceId=i['InstanceId'],
+                                                        Attribute='userData')
 
-                if 'Name' in tags:
-                    ins['name'] = tags['Name'].replace(' ', '-')
+                    user_data = base64.b64decode(user_data_response['UserData']['Value'])
+                    user_data = yaml.safe_load(user_data)
+                except:
+                    pass
 
-                result.append(ins)
+                tags = get_tags_dict(i.get('Tags', []))
+
+                is_spot_instance = True if i.get('InstanceLifecycle', '') == 'spot' else False
+
+                ins = {
+                    'type': 'instance',
+                    'created_by': 'agent',
+                    'region': region,
+                    'ip': i['PrivateIpAddress'],
+                    'host': i['PrivateIpAddress'],
+                    'instance_type': i['InstanceType'],
+                    'spot_instance': is_spot_instance,
+                    'aws_id': i['InstanceId'],
+                    'infrastructure_account': 'aws:{}'.format(owner),
+                }
+
+                ins['block_devices'] = get_instance_devices(aws_client, i)
+
+                if 'PublicIpAddress' in i:
+                    public_ip = i.get('PublicIpAddress')
+                    if public_ip != '' and public_ip is not None:
+                        ins.update({'public_ip': public_ip})
+
+                # for now limit us to instances with valid user data ( senza/taupage )
+                if isinstance(user_data, dict) and 'application_id' in user_data:
+                    ins['state_reason'] = i['StateTransitionReason']
+
+                    ins['events'] = []
+
+                    stack_version = user_data.get('application_version', 'NOT_SET')
+                    if 'StackVersion' in tags:
+                        ins['stack'] = tags['Name']
+                        stack_version = tags['StackVersion']
+                        if 'aws:cloudformation:logical-id' in tags:
+                            ins['resource_id'] = tags['aws:cloudformation:logical-id']
+
+                    ins['id'] = entity_id('{}-{}-{}[aws:{}:{}]'.format(user_data['application_id'],
+                                                                       stack_version,
+                                                                       get_hash(i['PrivateIpAddress'] + ''),
+                                                                       owner,
+                                                                       region))
+
+                    ins['application_id'] = user_data['application_id']
+
+                    if 'application_version' in user_data:
+                        ins['application_version'] = user_data['application_version']
+
+                    ins['source'] = user_data['source']
+                    ins['source_base'] = ins['source'].split(":")[0]
+
+                    if 'ports' in user_data:
+                        ins['ports'] = user_data['ports']
+
+                    ins['runtime'] = user_data['runtime']
+
+                    # `tags` is already a dict, but we need the raw list
+                    assign_properties_from_tags(ins, i.get('Tags', []))
+
+                    add_traffic_tags_to_entity(ins)
+
+                    if 'Name' in tags and 'cassandra' in tags['Name'] and 'opscenter' not in tags['Name']:
+                        cas = ins.copy()
+                        cas['type'] = 'cassandra'
+                        cas['id'] = entity_id('cas-{}'.format(cas['id']))
+                        result.append(cas)
+
+                else:
+                    ins['id'] = entity_id('{}-{}[aws:{}:{}]'.format(tags.get('Name') or i['InstanceId'],
+                                                                    get_hash(i['PrivateIpAddress'] + ''),
+                                                                    owner, region))
+
+                    # `tags` is already a dict, but we need the raw list
+                    assign_properties_from_tags(ins, i.get('Tags', []))
+
+                    if 'Name' in tags:
+                        ins['name'] = tags['Name'].replace(' ', '-')
+
+            if 'application_id' in ins and not (now.minute % 10):
+                ins['events'] = get_instance_events(aws_client, i)
+                ins['block_devices'] = get_instance_devices(aws_client, i)
+
+            result.append(ins)
 
     return result
 
@@ -664,6 +688,15 @@ def get_account_alias(region):
         iam_client = boto3.client('iam', region_name=region)
         resp = iam_client.list_account_aliases()
         return resp['AccountAliases'][0]
+    except:
+        return None
+
+
+def get_account_id(region):
+    try:
+        iam_client = boto3.client('iam', region_name=region)
+        role = iam_client.list_roles()['Roles'][0]
+        return role['Arn'].split(':')[4]
     except:
         return None
 

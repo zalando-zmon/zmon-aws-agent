@@ -60,6 +60,32 @@ def test_aws_get_account_alias(monkeypatch, result):
     boto.assert_called_with('iam', region_name=REGION)
 
 
+@pytest.mark.parametrize(
+    'result', [{'Roles': [{'Arn': 'arn:iam:aws::12:eu'}, {'Arn': 'arn:iam:aws::12:eu'}]}, RuntimeError]
+)
+def test_aws_get_account_id(monkeypatch, result):
+    fail = True
+    if type(result) is dict:
+        fail = False
+
+    iam_client = MagicMock()
+    if fail:
+        iam_client.list_roles.side_effect = result
+    else:
+        iam_client.list_roles.return_value = result
+
+    boto = get_boto_client(monkeypatch, iam_client)
+
+    res = aws.get_account_id(REGION)
+
+    if fail:
+        assert res is None
+    else:
+        assert res == result['Roles'][0]['Arn'].split(':')[4]
+
+    boto.assert_called_with('iam', region_name=REGION)
+
+
 def test_aws_get_apps_from_entities(monkeypatch):
     instances = [{'application_id': 'app-1'}, {}]
 
@@ -311,6 +337,10 @@ def test_aws_get_running_apps(monkeypatch):
     ec2_client.describe_instance_attribute.side_effect = user_resp
     ec2_client.describe_instance_status.return_value = status_resp
 
+    dt = MagicMock()
+    dt.now.return_value.minute = 10
+    monkeypatch.setattr('zmon_aws_agent.aws.datetime', dt)
+
     boto = get_boto_client(monkeypatch, ec2_client)
 
     res = aws.get_running_apps(REGION)
@@ -320,8 +350,7 @@ def test_aws_get_running_apps(monkeypatch):
     calls = [call(InstanceId='ins-1', Attribute='userData'), call(InstanceId='ins-2', Attribute='userData')]
     ec2_client.describe_instance_attribute.assert_has_calls(calls, any_order=True)
 
-    # Disabled for now!
-    # ec2_client.describe_instance_status.assert_called_with(InstanceIds=['ins-1'])
+    ec2_client.describe_instance_status.assert_called_with(InstanceIds=['ins-1'])
 
     boto.assert_called_with('ec2', region_name=REGION)
 

@@ -113,10 +113,22 @@ def main():
     logger.info('Reading DNS data for hosted zones')
     aws.populate_dns_data()
 
-    # 2. Get running apps
-    apps = aws.get_running_apps(region)
+    aws_account_id = aws.get_account_id(region)
+    infrastructure_account = 'aws:{}'.format(aws_account_id) if aws_account_id else None
 
-    infrastructure_account = None
+    if not infrastructure_account:
+        logger.error('AWS agent: Cannot determine infrastructure account ID. Terminating!')
+        return
+
+    # 2. ZMON entities
+    token = None if args.disable_oauth2 else tokens.get('uid')
+    zmon_client = Zmon(args.entityservice, token=token, user_agent=get_user_agent())
+
+    query = {'infrastructure_account': infrastructure_account, 'region': region, 'created_by': 'agent'}
+    entities = zmon_client.get_entities(query)
+
+    # 3. Get running apps
+    apps = aws.get_running_apps(region, entities)
 
     elbs = []
     scaling_groups = []
@@ -128,7 +140,6 @@ def main():
     to_be_removed = []
 
     if len(apps) > 0:
-        infrastructure_account = apps[0]['infrastructure_account']
         elbs = aws.get_running_elbs(region, infrastructure_account)
         scaling_groups = aws.get_auto_scaling_groups(region, infrastructure_account)
         rds = aws.get_rds_instances(region, infrastructure_account)
@@ -137,59 +148,51 @@ def main():
         certificates = aws.get_certificates(region, infrastructure_account)
         aws_limits = aws.get_limits(region, infrastructure_account, apps, elbs)
 
-    if infrastructure_account:
-        account_alias = aws.get_account_alias(region)
-        ia_entity = {
-            'type': 'local',
-            'infrastructure_account': infrastructure_account,
-            'account_alias': account_alias,
-            'region': region,
-            'id': 'aws-ac[{}:{}]'.format(infrastructure_account, region),
-            'created_by': 'agent',
-        }
+    account_alias = aws.get_account_alias(region)
+    ia_entity = {
+        'type': 'local',
+        'infrastructure_account': infrastructure_account,
+        'account_alias': account_alias,
+        'region': region,
+        'id': 'aws-ac[{}:{}]'.format(infrastructure_account, region),
+        'created_by': 'agent',
+    }
 
-        application_entities = aws.get_apps_from_entities(apps, infrastructure_account, region)
+    application_entities = aws.get_apps_from_entities(apps, infrastructure_account, region)
 
-        current_entities = (
-            elbs + scaling_groups + apps + application_entities + rds + elasticaches + dynamodbs + certificates)
-        current_entities.append(aws_limits)
-        current_entities.append(ia_entity)
+    current_entities = (
+        elbs + scaling_groups + apps + application_entities + rds + elasticaches + dynamodbs + certificates)
+    current_entities.append(aws_limits)
+    current_entities.append(ia_entity)
 
-        # 3. ZMON entities
-        token = None if args.disable_oauth2 else tokens.get('uid')
-        zmon_client = Zmon(args.entityservice, token=token, user_agent=get_user_agent())
+    # 4. Removing misssing entities
+    existing_ids = get_existing_ids(entities)
+    current_entities_ids = {e['id'] for e in current_entities}
 
-        query = {'infrastructure_account': infrastructure_account, 'region': region, 'created_by': 'agent'}
-        entities = zmon_client.get_entities(query)
+    to_be_removed, delete_error_count = remove_missing_entities(
+        existing_ids, current_entities_ids, zmon_client, json=args.json)
 
-        # 4. Removing misssing entities
-        existing_ids = get_existing_ids(entities)
-        current_entities_ids = {e['id'] for e in current_entities}
+    logger.info('Found {} removed entities from {} entities ({} failed)'.format(
+        len(new_entities), len(current_entities), delete_error_count))
 
-        to_be_removed, delete_error_count = remove_missing_entities(
-            existing_ids, current_entities_ids, zmon_client, json=args.json)
+    # 5. Get new/updated entities
+    new_entities, add_error_count = add_new_entities(current_entities, entities, zmon_client, json=args.json)
 
-        logger.info('Found {} removed entities from {} entities ({} failed)'.format(
-            len(new_entities), len(current_entities), delete_error_count))
+    logger.info('Found {} new entities from {} entities ({} failed)'.format(
+        len(new_entities), len(current_entities), add_error_count))
 
-        # 5. Get new/updated entities
-        new_entities, add_error_count = add_new_entities(current_entities, entities, zmon_client, json=args.json)
+    # 6. Always add Local entity
+    if not args.json:
+        ia_entity['errors'] = {'delete_count': delete_error_count, 'add_count': add_error_count}
+        try:
+            zmon_client.add_entity(ia_entity)
+        except:
+            logger.exception('Failed to add Local entity: {}'.format(ia_entity))
 
-        logger.info('Found {} new entities from {} entities ({} failed)'.format(
-            len(new_entities), len(current_entities), add_error_count))
+    types = {e['type']: len([t for t in new_entities if t['type'] == e['type']]) for e in new_entities}
 
-        # 6. Always add Local entity
-        if not args.json:
-            ia_entity['errors'] = {'delete_count': delete_error_count, 'add_count': add_error_count}
-            try:
-                zmon_client.add_entity(ia_entity)
-            except:
-                logger.exception('Failed to add Local entity: {}'.format(ia_entity))
-
-        types = {e['type']: len([t for t in new_entities if t['type'] == e['type']]) for e in new_entities}
-
-        for t, v in types.items():
-            logger.info('Found {} new entities of type: {}'.format(v, t))
+    for t, v in types.items():
+        logger.info('Found {} new entities of type: {}'.format(v, t))
 
     # Check if it is a dry run!
     if args.json:
