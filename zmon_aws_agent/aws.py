@@ -201,7 +201,7 @@ def get_running_apps(region, existing_entities=None):
             if str(i['State']['Name']) != 'running':
                 continue
 
-            if i['InstanceId'] in existing_instances:
+            if (now.minute % 7) and i['InstanceId'] in existing_instances:
                 ins = existing_instances[i['InstanceId']]
             else:
 
