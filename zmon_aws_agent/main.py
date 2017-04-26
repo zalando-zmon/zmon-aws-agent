@@ -163,9 +163,8 @@ def main():
     application_entities = aws.get_apps_from_entities(apps, infrastructure_account, region)
 
     current_entities = (
-        elbs + scaling_groups + apps + application_entities + rds + elasticaches + dynamodbs + certificates)
+        elbs + scaling_groups + apps + application_entities + rds + elasticaches + dynamodbs + certificates + sqs)
     current_entities.append(aws_limits)
-    current_entities.append(sqs)
     current_entities.append(ia_entity)
 
     # 4. Removing misssing entities
