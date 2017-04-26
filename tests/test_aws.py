@@ -6,7 +6,10 @@ import zmon_aws_agent.aws as aws
 
 from conftest import ThrottleError
 from conftest import ACCOUNT, REGION
-from conftest import get_elc_cluster, get_autoscaling, get_elbs, get_elbs_application, get_apps, get_certificates
+from conftest import get_elc_cluster, get_autoscaling, get_elbs, get_elbs_application, get_apps, get_certificates, \
+    get_sqs_queues
+
+from botocore.exceptions import ClientError
 
 
 def get_boto_client(monkeypatch, *args):
@@ -522,3 +525,99 @@ def test_aws_get_limits(monkeypatch, fail):
         call('iam', region_name=REGION),
     ]
     boto.assert_has_calls(calls)
+
+
+def test_aws_get_sqs_queues(monkeypatch):
+    urls, attributes, dead_letter_sources, result = get_sqs_queues()
+
+    sqs_client = MagicMock()
+    sqs_client.list_queues.return_value = urls
+    sqs_client.get_queue_attributes.side_effect = attributes
+    sqs_client.list_dead_letter_source_queues.side_effect = dead_letter_sources
+
+    boto = get_boto_client(monkeypatch, sqs_client)
+
+    res = aws.get_sqs_queues(REGION, ACCOUNT)
+
+    assert res == result
+    boto.assert_called_with('sqs', region_name=REGION)
+    sqs_client.list_queues.assert_called()
+
+    attribute_calls = [call(QueueUrl=url, AttributeNames=['All']) for url in urls['QueueUrls']]
+    sqs_client.get_queue_attributes.assert_has_calls(attribute_calls)
+
+    dl_sources_calls = [call(QueueUrl=url) for url in urls['QueueUrls']]
+    sqs_client.list_dead_letter_source_queues.assert_has_calls(dl_sources_calls)
+
+
+def test_aws_get_sqs_queues_fails_to_list_queues(monkeypatch):
+    sqs_client = MagicMock()
+    sqs_client.list_queues.side_effect = RuntimeError('Oops')
+
+    boto = get_boto_client(monkeypatch, sqs_client)
+
+    assert aws.get_sqs_queues(REGION, ACCOUNT) == []
+
+    boto.assert_called_with('sqs', region_name=REGION)
+    sqs_client.list_queues.assert_called()
+
+
+def test_aws_get_sqs_queues_access_denied(monkeypatch):
+    sqs_client = MagicMock()
+    sqs_client.list_queues.side_effect = ClientError(operation_name='foo',
+                                                     error_response={'Error': {'Code': 'AccessDenied'}})
+
+    boto = get_boto_client(monkeypatch, sqs_client)
+
+    assert aws.get_sqs_queues(REGION, ACCOUNT) == []
+
+    boto.assert_called_with('sqs', region_name=REGION)
+    sqs_client.list_queues.assert_called()
+
+
+def test_aws_get_sqs_queues_fails_to_get_details(monkeypatch):
+    urls, attributes, dead_letter_sources, result = get_sqs_queues()
+
+    attributes[0] = RuntimeError("Oops")
+    dead_letter_sources.pop(0)
+    result.pop(0)
+
+    sqs_client = MagicMock()
+    sqs_client.list_queues.return_value = urls
+    sqs_client.get_queue_attributes.side_effect = attributes
+    sqs_client.list_dead_letter_source_queues.side_effect = dead_letter_sources
+
+    boto = get_boto_client(monkeypatch, sqs_client)
+
+    res = aws.get_sqs_queues(REGION, ACCOUNT)
+
+    assert res == result
+    boto.assert_called_with('sqs', region_name=REGION)
+    sqs_client.list_queues.assert_called()
+
+    calls = [call(QueueUrl=url, AttributeNames=['All']) for url in urls['QueueUrls']]
+    sqs_client.get_queue_attributes.assert_has_calls(calls)
+
+
+def test_aws_get_sqs_queues_fails_on_weird_arn(monkeypatch):
+    urls, attributes, dead_letter_sources, result = get_sqs_queues()
+
+    attributes[0]['Attributes']['QueueArn'] = 'arn:aws:i-am-not-a-valid-arn'
+    dead_letter_sources.pop(0)
+    result.pop(0)
+
+    sqs_client = MagicMock()
+    sqs_client.list_queues.return_value = urls
+    sqs_client.get_queue_attributes.side_effect = attributes
+    sqs_client.list_dead_letter_source_queues.side_effect = dead_letter_sources
+
+    boto = get_boto_client(monkeypatch, sqs_client)
+
+    res = aws.get_sqs_queues(REGION, ACCOUNT)
+
+    assert res == result
+    boto.assert_called_with('sqs', region_name=REGION)
+    sqs_client.list_queues.assert_called()
+
+    calls = [call(QueueUrl=url, AttributeNames=['All']) for url in urls['QueueUrls']]
+    sqs_client.get_queue_attributes.assert_has_calls(calls)

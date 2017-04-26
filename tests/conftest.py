@@ -417,3 +417,78 @@ def fx_rds(request):
 ])
 def fx_dynamodb(request):
     return request.param
+
+
+def get_sqs_queues():
+    url1 = 'https://{}.queue.amazonaws.com/123412341234/queue1'.format(REGION)
+    url2 = 'https://{}.queue.amazonaws.com/123412341234/queue2'.format(REGION)
+    arn1 = 'arn:aws:sqs:{}:123412341234:queue1'.format(REGION)
+    arn2 = 'arn:aws:sqs:{}:123412341234:queue2'.format(REGION)
+
+    urls = {'QueueUrls': [url1, url2]}
+    attributes = [{'Attributes': {'ApproximateNumberOfMessagesNotVisible': '45',
+                                  'MessageRetentionPeriod': '345600',
+                                  'ApproximateNumberOfMessagesDelayed': '0',
+                                  'MaximumMessageSize': '262144',
+                                  'CreatedTimestamp': '1470131993',
+                                  'ApproximateNumberOfMessages': '1',
+                                  'ReceiveMessageWaitTimeSeconds': '10',
+                                  'DelaySeconds': '0',
+                                  'VisibilityTimeout': '30',
+                                  'LastModifiedTimestamp': '1470131993',
+                                  'QueueArn': arn1,
+                                  'RedrivePolicy': json.dumps({'deadLetterTargetArn': arn2, 'maxReceiveCount': 3})
+                                  }},
+                  {'Attributes': {'ApproximateNumberOfMessagesNotVisible': '0',
+                                  'MessageRetentionPeriod': '3600',
+                                  'ApproximateNumberOfMessagesDelayed': '0',
+                                  'MaximumMessageSize': '1024',
+                                  'CreatedTimestamp': '1470131993',
+                                  'ApproximateNumberOfMessages': '0',
+                                  'ReceiveMessageWaitTimeSeconds': '15',
+                                  'DelaySeconds': '20',
+                                  'VisibilityTimeout': '60',
+                                  'LastModifiedTimestamp': '1470131993',
+                                  'QueueArn': arn2}}]
+
+    dead_letter_sources = [
+        {},
+        {'queueUrls': [url1]}
+    ]
+
+    result = [
+        {
+            'id': 'sqs-queue1[{}:{}]'.format(ACCOUNT, REGION),
+            'created_by': 'agent',
+            'infrastructure_account': '{}'.format(ACCOUNT),
+            'region': REGION,
+            'type': 'aws_sqs',
+            'name': 'queue1',
+            'url': url1,
+            'arn': arn1,
+            'message_retention_period_seconds': 345600,
+            'maximum_message_size_bytes': 262144,
+            'receive_messages_wait_time_seconds': 10,
+            'delay_seconds': 0,
+            'visibility_timeout_seconds': 30,
+            'redrive_policy_dead_letter_target_arn': arn2,
+            'redrive_policy_max_receive_count': 3
+        },
+        {
+            'id': 'sqs-queue2[{}:{}]'.format(ACCOUNT, REGION),
+            'created_by': 'agent',
+            'infrastructure_account': '{}'.format(ACCOUNT),
+            'region': REGION,
+            'type': 'aws_sqs',
+            'name': 'queue2',
+            'url': url2,
+            'arn': arn2,
+            'message_retention_period_seconds': 3600,
+            'maximum_message_size_bytes': 1024,
+            'receive_messages_wait_time_seconds': 15,
+            'delay_seconds': 20,
+            'visibility_timeout_seconds': 60,
+            'redrive_policy_dead_letter_source_urls': [url1]
+        }]
+
+    return urls, attributes, dead_letter_sources, result

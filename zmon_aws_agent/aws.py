@@ -4,6 +4,7 @@ import hashlib
 import inflection
 import re
 import string
+import json
 
 from datetime import datetime
 
@@ -783,3 +784,69 @@ def get_limits(region, acc, apps, elbs):
     entity.update(limits)
 
     return entity
+
+
+def get_sqs_queues(region, acc, all_entities=None):
+    if all_entities is None:
+        all_entities = []
+    sqs_queues = []
+
+    try:
+        sqs_client = boto3.client('sqs', region_name=region)
+        list_queues_response = call_and_retry(sqs_client.list_queues)
+        existing_entities = {e['url']: e for e in all_entities if e['type'] == 'aws_sqs'}
+        for queue_url in list_queues_response['QueueUrls']:
+            try:
+                existing_entity = existing_entities.get(queue_url, None)
+                if existing_entity and (datetime.now().minute % 15):
+                    sqs_queues.append(existing_entity)
+                else:
+                    attributes_response = call_and_retry(sqs_client.get_queue_attributes, QueueUrl=queue_url,
+                                                         AttributeNames=['All'])
+                    attributes = attributes_response['Attributes']
+                    queue_arn = attributes['QueueArn']
+                    arn_tokens = queue_arn.split(':')
+                    if len(arn_tokens) == 6:
+                        queue_name = arn_tokens[-1]
+                    else:
+                        logger.error('Illegal SQS queue ARN: "%s" while processing url %s', queue_arn, queue_url)
+                        continue
+
+                    sqs_entity = {
+                        'id': entity_id('sqs-{}[{}:{}]'.format(queue_name, acc, region)),
+                        'created_by': 'agent',
+                        'infrastructure_account': acc,
+                        'region': region,
+                        'type': 'aws_sqs',
+                        'name': queue_name,
+                        'url': queue_url,
+                        'arn': queue_arn,
+                        'message_retention_period_seconds': int(attributes.get('MessageRetentionPeriod', 345600)),
+                        'maximum_message_size_bytes': int(attributes.get('MaximumMessageSize', 262144)),
+                        'receive_messages_wait_time_seconds': int(attributes.get('ReceiveMessageWaitTimeSeconds', 0)),
+                        'delay_seconds': int(attributes.get('DelaySeconds', 0)),
+                        'visibility_timeout_seconds': int(attributes.get('VisibilityTimeout', 30))}
+
+                    redrive_policy = json.loads(attributes.get('RedrivePolicy', '{}'))
+                    dead_letter_target_arn = redrive_policy.get('deadLetterTargetArn', None)
+                    if dead_letter_target_arn:
+                        sqs_entity['redrive_policy_dead_letter_target_arn'] = dead_letter_target_arn
+                    max_receive_count = redrive_policy.get('maxReceiveCount', None)
+                    if max_receive_count:
+                        sqs_entity['redrive_policy_max_receive_count'] = max_receive_count
+
+                    dl_sources_response = call_and_retry(sqs_client.list_dead_letter_source_queues, QueueUrl=queue_url)
+                    dead_letter_source_urls = dl_sources_response.get('queueUrls', None)
+                    if dead_letter_source_urls:
+                        sqs_entity['redrive_policy_dead_letter_source_urls'] = dead_letter_source_urls
+
+                    sqs_queues.append(sqs_entity)
+            except Exception:
+                logger.exception('Failed to obtain details about queue with url="%s"', queue_url)
+    except Exception as e:
+        if isinstance(e, ClientError) and e.response['Error']['Code'] == 'AccessDenied':
+            logger.warning('Access to AWS SQS denied. Skip queue discovery.')
+        else:
+            logger.exception('Failed to list SQS queues.')
+
+    return sqs_queues

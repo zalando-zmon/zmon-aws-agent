@@ -25,6 +25,7 @@ Discovers
 * DynamoDB tables
 * Elasticaches
 * IAM/ACM certificates
+* SQS queues
 
 Building
 ========

@@ -135,6 +135,7 @@ def main():
     rds = []
     elasticaches = []
     dynamodbs = []
+    sqs = []
 
     new_entities = []
     to_be_removed = []
@@ -147,6 +148,7 @@ def main():
         dynamodbs = aws.get_dynamodb_tables(region, infrastructure_account)
         certificates = aws.get_certificates(region, infrastructure_account)
         aws_limits = aws.get_limits(region, infrastructure_account, apps, elbs)
+        sqs = aws.get_sqs_queues(region, infrastructure_account, entities)
 
     account_alias = aws.get_account_alias(region)
     ia_entity = {
@@ -163,6 +165,7 @@ def main():
     current_entities = (
         elbs + scaling_groups + apps + application_entities + rds + elasticaches + dynamodbs + certificates)
     current_entities.append(aws_limits)
+    current_entities.append(sqs)
     current_entities.append(ia_entity)
 
     # 4. Removing misssing entities
@@ -205,6 +208,7 @@ def main():
             'rds': rds,
             'certificates': certificates,
             'aws_limits': aws_limits,
+            'sqs_queues': sqs,
             'new_entities': new_entities,
             'to_be_removed': to_be_removed,
         }
