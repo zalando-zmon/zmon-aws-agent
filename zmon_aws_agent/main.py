@@ -6,10 +6,12 @@ import logging
 import json
 import requests
 import tokens
+import os
 
 from zmon_cli.client import Zmon, compare_entities
 
 import zmon_aws_agent.aws as aws
+import zmon_aws_agent.postgresql as postgresql
 
 from zmon_aws_agent.common import get_user_agent
 
@@ -85,6 +87,8 @@ def main():
     argp.add_argument('-r', '--region', dest='region', default=None)
     argp.add_argument('-j', '--json', dest='json', action='store_true')
     argp.add_argument('--no-oauth2', dest='disable_oauth2', action='store_true', default=False)
+    argp.add_argument('--postgresql-user', dest='postgresql_user', default=os.environ.get('AGENT_POSTGRESQL_USER'))
+    argp.add_argument('--postgresql-pass', dest='postgresql_pass', default=os.environ.get('AGENT_POSTGRESQL_PASS'))
     args = argp.parse_args()
 
     if not args.disable_oauth2:
@@ -162,8 +166,27 @@ def main():
 
     application_entities = aws.get_apps_from_entities(apps, infrastructure_account, region)
 
+    if args.postgresql_user and args.postgresql_pass:
+        postgresql_clusters = zmon_client.get_entities({
+            'infrastructure_account': infrastructure_account,
+            'region': region,
+            'type': 'postgresql_cluster'
+        })
+        postgresql_databases = postgresql.get_databases_from_clusters(postgresql_clusters,
+                                                                      infrastructure_account,
+                                                                      region,
+                                                                      args.postgresql_user,
+                                                                      args.postgresql_pass)
+    else:
+        # Pretend the list of DBs is empty, but also make sure we don't remove
+        # any pre-existing database entities because we don't know about them.
+        postgresql_databases = []
+        entities = [e for e in entities if e.get('type') != 'postgresql_database']
+
     current_entities = (
-        elbs + scaling_groups + apps + application_entities + rds + elasticaches + dynamodbs + certificates + sqs)
+        elbs + scaling_groups + apps + application_entities +
+        rds + postgresql_databases + elasticaches + dynamodbs +
+        certificates + sqs)
     current_entities.append(aws_limits)
     current_entities.append(ia_entity)
 

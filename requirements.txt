@@ -1,5 +1,6 @@
 boto3>=1.4.0
 inflection
+psycopg2
 pyyaml
 stups-tokens>=1.0.16
 zmon-cli>=1.0.49
