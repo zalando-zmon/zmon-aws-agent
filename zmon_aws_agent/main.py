@@ -173,6 +173,8 @@ def main():
             'type': 'postgresql_cluster'
         })
         postgresql_databases = postgresql.get_databases_from_clusters(postgresql_clusters,
+                                                                      infrastructure_account,
+                                                                      region,
                                                                       args.postgresql_user,
                                                                       args.postgresql_pass)
     else:

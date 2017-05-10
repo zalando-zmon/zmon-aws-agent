@@ -1,6 +1,9 @@
 import logging
 import psycopg2
 
+# better move that one to common?
+from .aws import entity_id
+
 
 logger = logging.getLogger(__name__)
 
@@ -23,30 +26,35 @@ def list_postgres_databases(*args, **kwargs):
         return []
 
 
-def get_databases_from_clusters(pgclusters, postgresql_user, postgresql_pass):
+def get_databases_from_clusters(pgclusters, infrastructure_account, region,
+                                postgresql_user, postgresql_pass):
     entities = []
 
-    for pg in pgclusters:
-        dbnames = list_postgres_databases(host=pg['dnsname'],
-                                          port=POSTGRESQL_DEFAULT_PORT,
-                                          user=postgresql_user,
-                                          password=postgresql_pass,
-                                          dbname='postgres',
-                                          sslmode='require')
-        for db in dbnames:
-            entity = {
-                'id': '{}-{}'.format(db, pg['id']),
-                'type': 'postgresql_database',
-                'created_by': 'agent',
-                'infrastructure_account': pg['infrastructure_account'],
-                'region': pg['region'],
+    try:
+        for pg in pgclusters:
+            dnsname = pg['dnsname']
+            dbnames = list_postgres_databases(host=dnsname,
+                                              port=POSTGRESQL_DEFAULT_PORT,
+                                              user=postgresql_user,
+                                              password=postgresql_pass,
+                                              dbname='postgres',
+                                              sslmode='require')
+            for db in dbnames:
+                entity = {
+                    'id': entity_id('{}-{}[aws:{}:{}]'.format(db, dnsname, infrastructure_account, region)),
+                    'type': 'postgresql_database',
+                    'created_by': 'agent',
+                    'infrastructure_account': infrastructure_account,
+                    'region': region,
 
-                'postgresql_cluster': pg['id'],
-                'database_name': db,
-                'shards': {
-                    db: '{}:{}/{}'.format(pg['dnsname'], POSTGRESQL_DEFAULT_PORT, db)
+                    'postgresql_cluster': pg['id'],
+                    'database_name': db,
+                    'shards': {
+                        db: '{}:{}/{}'.format(dnsname, POSTGRESQL_DEFAULT_PORT, db)
+                    }
                 }
-            }
-            entities.append(entity)
+                entities.append(entity)
+    except:
+        logger.exception("Failed to make Database entities for PostgreSQL clusters!")
 
     return entities
