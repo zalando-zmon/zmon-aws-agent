@@ -1,4 +1,3 @@
-import pytest
 from mock import MagicMock
 
 import zmon_aws_agent.postgresql as postgresql
