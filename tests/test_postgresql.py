@@ -10,7 +10,7 @@ def test_get_databases_from_clusters():
             'dnsname': 'test-1.db.zalan.do'
         }
     ]
-    acc = '1234567890'
+    acc = 'aws:1234567890'
     region = 'eu-xxx-1'
 
     postgresql.list_postgres_databases = MagicMock()

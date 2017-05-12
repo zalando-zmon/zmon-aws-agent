@@ -41,7 +41,7 @@ def get_databases_from_clusters(pgclusters, infrastructure_account, region,
                                               sslmode='require')
             for db in dbnames:
                 entity = {
-                    'id': entity_id('{}-{}[aws:{}:{}]'.format(db, dnsname, infrastructure_account, region)),
+                    'id': entity_id('{}-{}[{}:{}]'.format(db, dnsname, infrastructure_account, region)),
                     'type': 'postgresql_database',
                     'created_by': 'agent',
                     'infrastructure_account': infrastructure_account,
