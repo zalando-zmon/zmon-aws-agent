@@ -793,9 +793,9 @@ def get_sqs_queues(region, acc, all_entities=None):
 
     try:
         sqs_client = boto3.client('sqs', region_name=region)
-        list_queues_response = call_and_retry(sqs_client.list_queues)
+        list_queues_response = call_and_retry(sqs_client.list_queues) or {}
         existing_entities = {e['url']: e for e in all_entities if e['type'] == 'aws_sqs'}
-        for queue_url in list_queues_response['QueueUrls']:
+        for queue_url in list_queues_response.get('QueueUrls', []):
             try:
                 existing_entity = existing_entities.get(queue_url, None)
                 if existing_entity and (datetime.now().minute % 15):

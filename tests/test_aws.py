@@ -562,6 +562,18 @@ def test_aws_get_sqs_queues_fails_to_list_queues(monkeypatch):
     sqs_client.list_queues.assert_called()
 
 
+def test_aws_get_sqs_queues_list_queues_is_empty(monkeypatch):
+    sqs_client = MagicMock()
+    sqs_client.list_queues.return_value = {}
+
+    boto = get_boto_client(monkeypatch, sqs_client)
+
+    assert aws.get_sqs_queues(REGION, ACCOUNT) == []
+
+    boto.assert_called_with('sqs', region_name=REGION)
+    sqs_client.list_queues.assert_called()
+
+
 def test_aws_get_sqs_queues_access_denied(monkeypatch):
     sqs_client = MagicMock()
     sqs_client.list_queues.side_effect = ClientError(operation_name='foo',
