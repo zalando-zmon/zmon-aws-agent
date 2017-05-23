@@ -276,13 +276,6 @@ def get_running_apps(region, existing_entities=None):
                     assign_properties_from_tags(ins, i.get('Tags', []))
 
                     add_traffic_tags_to_entity(ins)
-
-                    if 'Name' in tags and 'cassandra' in tags['Name'] and 'opscenter' not in tags['Name']:
-                        cas = ins.copy()
-                        cas['type'] = 'cassandra'
-                        cas['id'] = entity_id('cas-{}'.format(cas['id']))
-                        result.append(cas)
-
                 else:
                     ins['id'] = entity_id('{}-{}[aws:{}:{}]'.format(tags.get('Name') or i['InstanceId'],
                                                                     get_hash(i['PrivateIpAddress'] + ''),
