@@ -106,8 +106,13 @@ def test_aws_get_apps_from_entities(monkeypatch):
     assert apps == res
 
 
-def test_aws_get_rds_instances(monkeypatch, fx_rds):
+@pytest.mark.parametrize('minute', (15, 12))
+def test_aws_get_rds_instances(monkeypatch, fx_rds, minute):
     resp, result = fx_rds
+
+    dt = MagicMock()
+    dt.now.return_value.minute = minute
+    monkeypatch.setattr('zmon_aws_agent.aws.datetime', dt)
 
     fail = True
     if type(resp) is dict:
@@ -120,21 +125,25 @@ def test_aws_get_rds_instances(monkeypatch, fx_rds):
 
     boto = get_boto_client(monkeypatch, rds_client)
 
-    res = aws.get_rds_instances(REGION, ACCOUNT)
+    entities = [{'id': 'rds-123', 'type': 'database'}]
+    res = aws.get_rds_instances(REGION, ACCOUNT, entities)
 
-    if not fail:
-        # Adjust result
-        for r in result:
-            r['infrastructure_account'] = ACCOUNT
-            r['region'] = REGION
-            r['id'] = r['id'].format(ACCOUNT)
-            r['created_by'] = 'agent'
+    if minute % 15:
+        assert res == entities
+    else:
+        if not fail:
+            # Adjust result
+            for r in result:
+                r['infrastructure_account'] = ACCOUNT
+                r['region'] = REGION
+                r['id'] = r['id'].format(ACCOUNT)
+                r['created_by'] = 'agent'
 
-    assert res == result
+        assert res == result
 
-    rds_client.get_paginator.assert_called_with('describe_db_instances')
+        rds_client.get_paginator.assert_called_with('describe_db_instances')
 
-    boto.assert_called_with('rds', region_name=REGION)
+        boto.assert_called_with('rds', region_name=REGION)
 
 
 def test_aws_get_dynamodb_tables(monkeypatch, fx_dynamodb):

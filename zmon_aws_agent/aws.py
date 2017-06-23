@@ -585,8 +585,15 @@ def get_dynamodb_tables(region, acc):
     return tables
 
 
-def get_rds_instances(region, acc):
-    rds_instances = []
+def get_rds_instances(region, acc, existing_entities):
+    entities = []
+
+    now = datetime.now()
+
+    rds_entities = [r for r in existing_entities if r['type'] == 'database' and r['id'].startswith('rds-')]
+
+    if now.minute % 15:
+        return rds_entities
 
     try:
         rds_client = boto3.client('rds', region_name=region)
@@ -608,6 +615,9 @@ def get_rds_instances(region, acc):
                 'port': i['Endpoint']['Port'],
                 'host': i['Endpoint']['Address'],
                 'name': i['DBInstanceIdentifier'],
+                'instance_type': i.get('DBInstanceClass', ''),
+                'storage_type': i.get('StorageType', ''),
+                'storage_size': i.get('AllocatedStorage', ''),
             }
 
             if 'EngineVersion' in i:
@@ -619,12 +629,12 @@ def get_rds_instances(region, acc):
 
             db['shards'] = {cluster_name: '{}:{}/{}'.format(db['host'], db['port'], cluster_name)}
 
-            rds_instances.append(db)
+            entities.append(db)
 
     except Exception:
         logger.exception('Failed to get RDS instance')
 
-    return rds_instances
+    return entities
 
 
 def get_certificates(region, acc):
