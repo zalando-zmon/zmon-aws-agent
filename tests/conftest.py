@@ -227,7 +227,8 @@ def get_apps():
                         'Tags': [
                             {'Key': 'Name', 'Value': 'stack-1'}, {'Key': 'StackVersion', 'Value': 'stack-1-1.0'},
                             {'Key': 'aws:cloudformation:logical-id', 'Value': 'cd-app'}
-                        ]
+                        ],
+                        'ImageId': 'ami-1234',
                     },
                     {
                         'State': {'Name': 'running'},
@@ -276,6 +277,8 @@ def get_apps():
             'source': 'registry/stups/zmon-aws-agent:cd81', 'source_base': 'registry/stups/zmon-aws-agent',
             'ports': [2222], 'runtime': 'docker', 'aws:cloudformation:logical_id': 'cd-app', 'name': 'stack-1',
             'events': ['ev-1', 'ev-2'], 'spot_instance': True, 'block_devices': {},
+            'image_id': 'ami-1234', 'image_name': 'Taupage-AMI-20170512-142225',
+            'image_date': '2017-05-12T14:22:25.000Z',
         },
         {
             'id': 'ins-2-{}[{}:{}]'.format(get_hash('192.168.20.16'), ACCOUNT, REGION),
@@ -291,7 +294,17 @@ def get_apps():
         }
     ]
 
-    return resp, status_resp, user_resp, result
+    images = {
+        'Images': [
+            {
+                "Name": "Taupage-AMI-20170512-142225",
+                "ImageId": "ami-1234",
+                "CreationDate": "2017-05-12T14:22:25.000Z",
+            }
+        ]
+    }
+
+    return resp, status_resp, user_resp, result, images
 
 
 def get_certificates():

@@ -342,15 +342,17 @@ def test_aws_get_certificates(monkeypatch, fail):
 
 
 def test_aws_get_running_apps(monkeypatch):
-    resp, status_resp, user_resp, result = get_apps()
+    resp, status_resp, user_resp, result, images = get_apps()
 
     ec2_client = MagicMock()
     ec2_client.get_paginator.return_value.paginate.return_value.build_full_result.return_value = resp
     ec2_client.describe_instance_attribute.side_effect = user_resp
     ec2_client.describe_instance_status.return_value = status_resp
+    ec2_client.describe_images.return_value = images
 
     dt = MagicMock()
     dt.now.return_value.minute = 10
+    dt.now.return_value.hour = 12
     monkeypatch.setattr('zmon_aws_agent.aws.datetime', dt)
 
     boto = get_boto_client(monkeypatch, ec2_client)
@@ -363,6 +365,7 @@ def test_aws_get_running_apps(monkeypatch):
     ec2_client.describe_instance_attribute.assert_has_calls(calls, any_order=True)
 
     ec2_client.describe_instance_status.assert_called_with(InstanceIds=['ins-1'])
+    ec2_client.describe_images.assert_called_with(ImageIds=['ami-1234'])
 
     boto.assert_called_with('ec2', region_name=REGION)
 
