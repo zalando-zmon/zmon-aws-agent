@@ -298,7 +298,7 @@ def get_running_apps(region, existing_entities=None):
 
             result.append(ins)
 
-        if (now.hour % 6) == 0 and (now.minute % 10) == 0:
+        if now.hour == 21:
             imgs = []
             try:
                 imgs = aws_client.describe_images(ImageIds=list(images))['Images']
@@ -309,9 +309,9 @@ def get_running_apps(region, existing_entities=None):
                         if img['ImageId'] == i['image_id']:
                             i['image_name'] = img['Name'] if 'Name' in img else 'UNKNOWN'
                             if 'CreationDate' in img:
-                                i['image_date'] = img['CreationDate']
+                                i['image_date'] = img['CreationDate'].replace('Z', '+00:00')
                             else:
-                                i['image_date'] = '1970-01-01T00:00:00.000Z'
+                                i['image_date'] = '1970-01-01T00:00:00.000+00:00'
                             break
             except:
                 pass

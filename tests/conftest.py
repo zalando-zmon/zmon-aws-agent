@@ -278,7 +278,7 @@ def get_apps():
             'ports': [2222], 'runtime': 'docker', 'aws:cloudformation:logical_id': 'cd-app', 'name': 'stack-1',
             'events': ['ev-1', 'ev-2'], 'spot_instance': True, 'block_devices': {},
             'image_id': 'ami-1234', 'image_name': 'Taupage-AMI-20170512-142225',
-            'image_date': '2017-05-12T14:22:25.000Z',
+            'image_date': '2017-05-12T14:22:25.000+00:00',
         },
         {
             'id': 'ins-2-{}[{}:{}]'.format(get_hash('192.168.20.16'), ACCOUNT, REGION),

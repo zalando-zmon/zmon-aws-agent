@@ -352,7 +352,7 @@ def test_aws_get_running_apps(monkeypatch):
 
     dt = MagicMock()
     dt.now.return_value.minute = 10
-    dt.now.return_value.hour = 12
+    dt.now.return_value.hour = 21
     monkeypatch.setattr('zmon_aws_agent.aws.datetime', dt)
 
     boto = get_boto_client(monkeypatch, ec2_client)
