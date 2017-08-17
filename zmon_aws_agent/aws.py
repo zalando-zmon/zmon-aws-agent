@@ -236,6 +236,7 @@ def get_running_apps(region, existing_entities=None):
                     'infrastructure_account': 'aws:{}'.format(owner),
                 }
 
+                ins['image'] = {}
                 if 'ImageId' in i:
                     images.add(i['ImageId'])
                     ins['image'] = {'id': i['ImageId']}
@@ -300,24 +301,20 @@ def get_running_apps(region, existing_entities=None):
 
             result.append(ins)
 
-        logger.info('Fetching {} images: {}'.format(len(images), list(images)))
         imgs = []
         try:
             imgs = aws_client.describe_images(ImageIds=list(images))['Images']
-            logger.info('Got {} image descriptions'.format(len(imgs)))
             for i in result:
-                if 'image' not in i:
+                if 'image' not in i or 'id' not in i['image']:
                     continue
                 for img in imgs:
                     if img['ImageId'] == i['image']['id']:
-                        i['image']['name'] = img['Name'] if 'Name' in img else 'UNKNOWN'
-                        if 'CreationDate' in img:
-                            i['image']['date'] = img['CreationDate'].replace('Z', '+00:00')
-                        else:
-                            i['image']['date'] = '1970-01-01T00:00:00.000+00:00'
+                        i['image']['name'] = img.get('Name', 'UNKNOWN')
+                        date = img.get('CreationDate', '1970-01-01T00:00:00.000+00:00').replace('Z', '+00:00')
+                        i['image']['date'] = date
                         break
-        except Exception as e:
-            logger.warning('Failed to retrieve image descriptions: {}'.format(e))
+        except:
+            logger.exception('Failed to retrieve image descriptions')
 
     return result
 
