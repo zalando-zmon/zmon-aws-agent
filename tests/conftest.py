@@ -276,21 +276,23 @@ def get_apps():
             'resource_id': 'cd-app', 'application_id': 'app-1', 'application_version': '1.0',
             'source': 'registry/stups/zmon-aws-agent:cd81', 'source_base': 'registry/stups/zmon-aws-agent',
             'ports': [2222], 'runtime': 'docker', 'aws:cloudformation:logical_id': 'cd-app', 'name': 'stack-1',
-            'events': ['ev-1', 'ev-2'], 'spot_instance': True, 'block_devices': {},
-            'image_id': 'ami-1234', 'image_name': 'Taupage-AMI-20170512-142225',
-            'image_date': '2017-05-12T14:22:25.000+00:00',
+            'events': ['ev-1', 'ev-2'], 'spot_instance': True, 'block_devices': {}, 'image': {
+                'id': 'ami-1234',
+                'name': 'Taupage-AMI-20170512-142225',
+                'date': '2017-05-12T14:22:25.000+00:00',
+            },
         },
         {
             'id': 'ins-2-{}[{}:{}]'.format(get_hash('192.168.20.16'), ACCOUNT, REGION),
             'type': 'instance', 'created_by': 'agent', 'region': REGION, 'infrastructure_account': 'aws:1234',
             'ip': '192.168.20.16', 'host': '192.168.20.16', 'spot_instance': False,
-            'instance_type': 't2.medium', 'aws_id': 'ins-2', 'block_devices': {},
+            'instance_type': 't2.medium', 'aws_id': 'ins-2', 'block_devices': {}, 'image': {},
         },
         {
             'id': 'myname-{}[{}:{}]'.format(get_hash('192.168.20.17'), ACCOUNT, REGION),
             'type': 'instance', 'created_by': 'agent', 'region': REGION, 'infrastructure_account': 'aws:1234',
             'ip': '192.168.20.17', 'host': '192.168.20.17', 'spot_instance': False,
-            'instance_type': 't2.medium', 'aws_id': 'ins-3', 'name': 'myname', 'block_devices': {},
+            'instance_type': 't2.medium', 'aws_id': 'ins-3', 'name': 'myname', 'block_devices': {}, 'image': {},
         }
     ]
 

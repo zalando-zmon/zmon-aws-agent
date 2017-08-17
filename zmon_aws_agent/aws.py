@@ -234,9 +234,10 @@ def get_running_apps(region, existing_entities=None):
                     'infrastructure_account': 'aws:{}'.format(owner),
                 }
 
+                ins['image'] = {}
                 if 'ImageId' in i:
                     images.add(i['ImageId'])
-                    ins['image_id'] = i['ImageId']
+                    ins['image']['id'] = i['ImageId']
 
                 ins['block_devices'] = get_instance_devices(aws_client, i)
 
@@ -298,23 +299,20 @@ def get_running_apps(region, existing_entities=None):
 
             result.append(ins)
 
-        if now.hour == 21:
-            imgs = []
-            try:
-                imgs = aws_client.describe_images(ImageIds=list(images))['Images']
-                for i in result:
-                    if 'image_id' not in i:
-                        continue
-                    for img in imgs:
-                        if img['ImageId'] == i['image_id']:
-                            i['image_name'] = img['Name'] if 'Name' in img else 'UNKNOWN'
-                            if 'CreationDate' in img:
-                                i['image_date'] = img['CreationDate'].replace('Z', '+00:00')
-                            else:
-                                i['image_date'] = '1970-01-01T00:00:00.000+00:00'
-                            break
-            except:
-                pass
+        imgs = []
+        try:
+            imgs = aws_client.describe_images(ImageIds=list(images))['Images']
+            for i in result:
+                if 'image' not in i or 'id' not in i['image']:
+                    continue
+                for img in imgs:
+                    if img['ImageId'] == i['image']['id']:
+                        i['image']['name'] = img.get('Name', 'UNKNOWN')
+                        date = img.get('CreationDate', '1970-01-01T00:00:00.000+00:00').replace('Z', '+00:00')
+                        i['image']['date'] = date
+                        break
+        except:
+            logger.exception('Failed to retrieve image descriptions')
 
     return result
 
