@@ -205,6 +205,8 @@ def get_running_apps(region, existing_entities=None):
 
             if (now.minute % 7) and i['InstanceId'] in existing_instances:
                 ins = existing_instances[i['InstanceId']]
+                if 'image' in ins:
+                    images.add(ins['image']['id'])
             else:
 
                 user_data = None
@@ -237,7 +239,7 @@ def get_running_apps(region, existing_entities=None):
                 ins['image'] = {}
                 if 'ImageId' in i:
                     images.add(i['ImageId'])
-                    ins['image']['id'] = i['ImageId']
+                    ins['image'] = {'id': i['ImageId']}
 
                 ins['block_devices'] = get_instance_devices(aws_client, i)
 
@@ -300,19 +302,21 @@ def get_running_apps(region, existing_entities=None):
             result.append(ins)
 
         imgs = []
-        try:
-            imgs = aws_client.describe_images(ImageIds=list(images))['Images']
-            for i in result:
-                if 'image' not in i or 'id' not in i['image']:
-                    continue
-                for img in imgs:
-                    if img['ImageId'] == i['image']['id']:
-                        i['image']['name'] = img.get('Name', 'UNKNOWN')
-                        date = img.get('CreationDate', '1970-01-01T00:00:00.000+00:00').replace('Z', '+00:00')
-                        i['image']['date'] = date
-                        break
-        except:
-            logger.exception('Failed to retrieve image descriptions')
+        # prevent fetching all images (in case the images is empty, it will do so):
+        if list(images):
+            try:
+                imgs = aws_client.describe_images(ImageIds=list(images))['Images']
+                for i in result:
+                    if 'image' not in i or 'id' not in i['image']:
+                        continue
+                    for img in imgs:
+                        if img['ImageId'] == i['image']['id']:
+                            i['image']['name'] = img.get('Name', 'UNKNOWN')
+                            date = img.get('CreationDate', '1970-01-01T00:00:00.000+00:00').replace('Z', '+00:00')
+                            i['image']['date'] = date
+                            break
+            except:
+                logger.exception('Failed to retrieve image descriptions')
 
     return result
 

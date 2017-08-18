@@ -309,6 +309,87 @@ def get_apps():
     return resp, status_resp, user_resp, result, images
 
 
+def get_apps_existing():
+    resp = {
+        'Reservations': [
+            {
+                'OwnerId': '1234',
+                'Instances': [
+                    {
+                        'State': {'Name': 'running'},
+                        'PrivateIpAddress': '192.168.20.16', 'PublicIpAddress': '194.194.20.16',
+                        'InstanceType': 't2.medium', 'InstanceId': 'ins-1', 'StateTransitionReason': 'state',
+                        'InstanceLifecycle': 'spot',
+                        'Tags': [
+                            {'Key': 'Name', 'Value': 'stack-1'}, {'Key': 'StackVersion', 'Value': 'stack-1-1.0'},
+                            {'Key': 'aws:cloudformation:logical-id', 'Value': 'cd-app'}
+                        ],
+                    },
+                    {
+                        'State': {'Name': 'running'},
+                        'PrivateIpAddress': '192.168.20.16',
+                        'InstanceType': 't2.medium', 'InstanceId': 'ins-2', 'StateTransitionReason': 'state'
+                    },
+                    {
+                        'State': {'Name': 'terminated'},
+                    },
+                    {
+                        'State': {'Name': 'running'},
+                        'PrivateIpAddress': '192.168.20.17',
+                        'InstanceType': 't2.medium', 'InstanceId': 'ins-3', 'StateTransitionReason': 'state',
+                        'Tags': [
+                            {'Key': 'Name', 'Value': 'myname'}
+                        ]
+                    },
+                ],
+            }
+        ]
+    }
+
+    status_resp = {'InstanceStatuses': [{'Events': ['ev-1', 'ev-2']}]}
+
+    user_data = [
+        {
+            'application_id': 'app-1', 'source': 'registry/stups/zmon-aws-agent:cd81',
+            'ports': [2222], 'runtime': 'docker',
+            'application_version': '1.0',
+        },
+        {
+            'no-appliacation-id': 'dummy'
+        }
+    ]
+
+    user_resp = [{'UserData': {'Value': base64.encodebytes(bytes(json.dumps(u), 'utf-8'))}} for u in user_data]
+
+    result = [
+        {
+            'id': 'app-1-stack-1-1.0-{}[{}:{}]'.format(get_hash('192.168.20.16'), ACCOUNT, REGION),
+            'type': 'instance', 'created_by': 'agent', 'region': REGION, 'infrastructure_account': 'aws:1234',
+            'ip': '192.168.20.16', 'host': '192.168.20.16', 'public_ip': '194.194.20.16',
+            'instance_type': 't2.medium', 'aws_id': 'ins-1',
+            'state_reason': 'state', 'stack': 'stack-1', 'stack_version': 'stack-1-1.0',
+            'resource_id': 'cd-app', 'application_id': 'app-1', 'application_version': '1.0',
+            'source': 'registry/stups/zmon-aws-agent:cd81', 'source_base': 'registry/stups/zmon-aws-agent',
+            'ports': [2222], 'runtime': 'docker', 'aws:cloudformation:logical_id': 'cd-app', 'name': 'stack-1',
+            'events': [], 'spot_instance': True, 'block_devices': {}, 'image': {},
+        },
+        {
+            'id': 'ins-2-{}[{}:{}]'.format(get_hash('192.168.20.16'), ACCOUNT, REGION),
+            'type': 'instance', 'created_by': 'agent', 'region': REGION, 'infrastructure_account': 'aws:1234',
+            'ip': '192.168.20.16', 'host': '192.168.20.16', 'spot_instance': False,
+            'instance_type': 't2.medium', 'aws_id': 'ins-2', 'block_devices': {}, 'image': {},
+        },
+        {
+            'id': 'myname-{}[{}:{}]'.format(get_hash('192.168.20.17'), ACCOUNT, REGION),
+            'type': 'instance', 'created_by': 'agent', 'region': REGION, 'infrastructure_account': 'aws:1234',
+            'ip': '192.168.20.17', 'host': '192.168.20.17', 'spot_instance': False,
+            'instance_type': 't2.medium', 'aws_id': 'ins-3', 'name': 'myname', 'block_devices': {}, 'image': {},
+        }
+    ]
+
+    return resp, status_resp, user_resp, result
+
+
 def get_certificates():
     resp_iam = {
         'ServerCertificateMetadataList': [
