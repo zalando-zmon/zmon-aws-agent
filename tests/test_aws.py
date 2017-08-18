@@ -7,7 +7,7 @@ import zmon_aws_agent.aws as aws
 from conftest import ThrottleError
 from conftest import ACCOUNT, REGION
 from conftest import get_elc_cluster, get_autoscaling, get_elbs, get_elbs_application, get_apps, get_certificates, \
-    get_sqs_queues
+    get_sqs_queues, get_apps_existing
 
 from botocore.exceptions import ClientError
 
@@ -368,6 +368,28 @@ def test_aws_get_running_apps(monkeypatch):
     ec2_client.describe_images.assert_called_with(ImageIds=['ami-1234'])
 
     boto.assert_called_with('ec2', region_name=REGION)
+
+
+def test_aws_get_running_apps_existing(monkeypatch):
+    resp, status_resp, user_resp, result = get_apps_existing()
+
+    ec2_client = MagicMock()
+    ec2_client.get_paginator.return_value.paginate.return_value.build_full_result.return_value = resp
+    ec2_client.describe_instance_attribute.side_effect = user_resp
+    ec2_client.describe_instance_status.return_value = status_resp
+
+    dt = MagicMock()
+    dt.now.return_value.minute = 7
+    monkeypatch.setattr('zmon_aws_agent.aws.datetime', dt)
+
+    get_boto_client(monkeypatch, ec2_client)
+
+    res = aws.get_running_apps(REGION)
+    assert res == result
+
+    calls = [call(InstanceId='ins-1', Attribute='userData'), call(InstanceId='ins-2', Attribute='userData')]
+    ec2_client.describe_instance_attribute.assert_has_calls(calls, any_order=True)
+    ec2_client.describe_images.assert_not_called()
 
 
 def test_aws_populate_dns(monkeypatch):

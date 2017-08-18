@@ -302,19 +302,21 @@ def get_running_apps(region, existing_entities=None):
             result.append(ins)
 
         imgs = []
-        try:
-            imgs = aws_client.describe_images(ImageIds=list(images))['Images']
-            for i in result:
-                if 'image' not in i or 'id' not in i['image']:
-                    continue
-                for img in imgs:
-                    if img['ImageId'] == i['image']['id']:
-                        i['image']['name'] = img.get('Name', 'UNKNOWN')
-                        date = img.get('CreationDate', '1970-01-01T00:00:00.000+00:00').replace('Z', '+00:00')
-                        i['image']['date'] = date
-                        break
-        except:
-            logger.exception('Failed to retrieve image descriptions')
+        # prevent fetching all images (in case the images is empty, it will do so):
+        if list(images):
+            try:
+                imgs = aws_client.describe_images(ImageIds=list(images))['Images']
+                for i in result:
+                    if 'image' not in i or 'id' not in i['image']:
+                        continue
+                    for img in imgs:
+                        if img['ImageId'] == i['image']['id']:
+                            i['image']['name'] = img.get('Name', 'UNKNOWN')
+                            date = img.get('CreationDate', '1970-01-01T00:00:00.000+00:00').replace('Z', '+00:00')
+                            i['image']['date'] = date
+                            break
+            except:
+                logger.exception('Failed to retrieve image descriptions')
 
     return result
 
