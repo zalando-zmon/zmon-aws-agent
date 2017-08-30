@@ -198,7 +198,7 @@ def main():
     current_entities.append(aws_limits)
     current_entities.append(ia_entity)
     for entity in current_entities:
-        entity.update('extras', entity_extras)
+        entity.update(entity_extras)
 
     # 4. Removing misssing entities
     existing_ids = get_existing_ids(entities)
