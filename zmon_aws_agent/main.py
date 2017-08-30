@@ -97,6 +97,14 @@ def main():
         tokens.start()
 
     logging.basicConfig(level=logging.INFO)
+    # 0. Fetch extra data for entities
+    entity_extras = {}
+    for ex in os.getenv('EXTRA_ENTITY_FIELDS', '').split(','):
+        if '=' not in ex:
+            continue
+        k, v = ex.split('=', 1)
+        if k and v:
+            entity_extras[k] = v
 
     # 1. Determine region
     if not args.region:
@@ -189,6 +197,8 @@ def main():
         certificates + sqs)
     current_entities.append(aws_limits)
     current_entities.append(ia_entity)
+    for entity in current_entities:
+        entity.update(entity_extras)
 
     # 4. Removing misssing entities
     existing_ids = get_existing_ids(entities)
