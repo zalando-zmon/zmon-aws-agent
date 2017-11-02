@@ -295,9 +295,14 @@ def get_running_apps(region, existing_entities=None):
                     if 'Name' in tags:
                         ins['name'] = tags['Name'].replace(' ', '-')
 
-            if 'application_id' in ins and not (now.minute % 10):
-                ins['events'] = get_instance_events(aws_client, i)
-                ins['block_devices'] = get_instance_devices(aws_client, i)
+            if 'application_id' in ins:
+                if not (now.minute % 10):
+                    ins['events'] = get_instance_events(aws_client, i)
+                    ins['block_devices'] = get_instance_devices(aws_client, i)
+                else:
+                    e = existing_instances.get(ins.get('aws_id', None), None)
+                    if e and 'events' in e:
+                        ins['events'] = e['events']
 
             result.append(ins)
 
