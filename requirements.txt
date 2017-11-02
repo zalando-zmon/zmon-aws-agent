@@ -3,4 +3,4 @@ inflection
 psycopg2
 pyyaml
 stups-tokens>=1.0.16
-zmon-cli>=1.0.49
+zmon-cli>=1.1.55
