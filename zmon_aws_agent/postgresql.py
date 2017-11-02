@@ -21,7 +21,7 @@ def list_postgres_databases(*args, **kwargs):
              WHERE datname NOT IN('postgres', 'template0', 'template1')
         """)
         return [row[0] for row in cur.fetchall()]
-    except:
+    except Exception:
         logger.exception("Failed to list DBs!")
         return []
 
@@ -54,7 +54,7 @@ def get_databases_from_clusters(pgclusters, infrastructure_account, region,
                     }
                 }
                 entities.append(entity)
-    except:
+    except Exception:
         logger.exception("Failed to make Database entities for PostgreSQL clusters!")
 
     return entities

@@ -170,7 +170,7 @@ def get_instance_events(aws_client, instance):
 
         if 'Events' in instance_status_resp['InstanceStatuses'][0]:
             return instance_status_resp['InstanceStatuses'][0]['Events']
-    except:
+    except Exception:
         logger.exception('Failed to retrieve instance events for instance: {}'.format(instance['InstanceId']))
 
     return []
@@ -217,7 +217,7 @@ def get_running_apps(region, existing_entities=None):
 
                     user_data = base64.b64decode(user_data_response['UserData']['Value'])
                     user_data = yaml.safe_load(user_data)
-                except:
+                except Exception:
                     pass
 
                 tags = get_tags_dict(i.get('Tags', []))
@@ -320,7 +320,7 @@ def get_running_apps(region, existing_entities=None):
                             date = img.get('CreationDate', '1970-01-01T00:00:00.000+00:00').replace('Z', '+00:00')
                             i['image']['date'] = date
                             break
-            except:
+            except Exception:
                 logger.exception('Failed to retrieve image descriptions')
 
     return result
@@ -427,7 +427,7 @@ def get_running_elbs_application(region, acc):
         try:
             target_groups = call_and_retry(
                 lambda: tg_paginator.paginate(LoadBalancerArn=arn).build_full_result()['TargetGroups'])
-        except:
+        except Exception:
             target_groups = []
 
         listeners = elb_client.describe_listeners(LoadBalancerArn=arn)['Listeners']
@@ -528,7 +528,7 @@ def get_auto_scaling_groups(region, acc):
                                 'aws_id': i['InstanceId'],
                                 'ip': i['PrivateIpAddress'],
                             })
-            except:
+            except Exception:
                 logger.exception('Failed in retrieving instances for ASG: {}'.format(sg['name']))
 
         groups.append(sg)
@@ -609,7 +609,7 @@ def get_dynamodb_tables(region, acc):
             }
 
             tables.append(table)
-    except:
+    except Exception:
         logger.exception('Got exception while listing dynamodb tables, IAM role has no access?')
 
     return tables
@@ -711,7 +711,7 @@ def get_certificates(region, acc):
             }
 
             entities.append(e)
-    except:
+    except Exception:
         logger.exception('Failed while retrieving IAM/ACM certificates, IAM role has no access?')
 
     return entities
@@ -722,7 +722,7 @@ def get_account_alias(region):
         iam_client = boto3.client('iam', region_name=region)
         resp = iam_client.list_account_aliases()
         return resp['AccountAliases'][0]
-    except:
+    except Exception:
         return None
 
 
@@ -731,7 +731,7 @@ def get_account_id(region):
         iam_client = boto3.client('iam', region_name=region)
         role = iam_client.list_roles()['Roles'][0]
         return role['Arn'].split(':')[4]
-    except:
+    except Exception:
         return None
 
 
@@ -767,7 +767,7 @@ def get_limits(region, acc, apps, elbs):
         for attr in attrs:
             if attr['AttributeName'] == 'max-instances':
                 limits['ec2-max-instances'] = int(attr['AttributeValues'][0]['AttributeValue'])
-    except:
+    except Exception:
         logger.exception('Failed to query EC2 account attributes!')
 
     try:
@@ -780,7 +780,7 @@ def get_limits(region, acc, apps, elbs):
         limits['rds-used-reserved'] = q['ReservedDBInstances']['Used']
         limits['rds-max-allocated'] = q['AllocatedStorage']['Max']
         limits['rds-used-allocated'] = q['AllocatedStorage']['Used']
-    except:
+    except Exception:
         logger.exception('Failed to query RDS account attributes!')
 
     try:
@@ -789,7 +789,7 @@ def get_limits(region, acc, apps, elbs):
         limits['asg-max-launch-configurations'] = asg_limits['MaxNumberOfLaunchConfigurations']
         limits['asg-used-groups'] = asg_limits['NumberOfAutoScalingGroups']
         limits['asg-used-launch-configurations'] = asg_limits['NumberOfLaunchConfigurations']
-    except:
+    except Exception:
         logger.exception('Failed to query ASG limits!')
 
     try:
@@ -803,7 +803,7 @@ def get_limits(region, acc, apps, elbs):
         limits['iam-used-policies'] = iam_limits['Policies']
         limits['iam-max-policies'] = iam_limits['PoliciesQuota']
 
-    except:
+    except Exception:
         logger.exception('Failed to query IAM account summary!')
 
     entity = {
