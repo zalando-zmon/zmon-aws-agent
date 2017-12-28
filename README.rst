@@ -4,7 +4,7 @@ ZMON AWS Agent
 
 .. image:: https://travis-ci.org/zalando-zmon/zmon-aws-agent.svg?branch=master
     :target: https://travis-ci.org/zalando-zmon/zmon-aws-agent
-    
+
 .. image:: https://img.shields.io/codecov/c/github/zalando-zmon/zmon-aws-agent.svg?maxAge=2592000
     :target: https://codecov.io/gh/zalando-zmon/zmon-aws-agent
 
@@ -27,11 +27,16 @@ Discovers
 * IAM/ACM certificates
 * SQS queues
 
+Tests
+=====
+
+.. code-block:: bash
+
+    $ tox
+
 Building
 ========
 
 .. code-block:: bash
 
-    $ sudo pip3 install scm-source
-    $ scm-source
     $ docker build -t zmon-aws-agent .
