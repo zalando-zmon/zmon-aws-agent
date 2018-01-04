@@ -37,15 +37,6 @@ def entity_id(s: str) -> str:
     return INVALID_ENTITY_CHARS_PATTERN.sub('-', INVALID_ENTITY_FIRST_CHAR.sub('', s))
 
 
-def json_serial(obj):
-    """JSON serializer for objects not serializable by default json code"""
-
-    if isinstance(obj, datetime):
-        serial = obj.isoformat()
-        return serial
-    raise TypeError('Type not serializable')
-
-
 def base_decode(string, reverse_base=BASE_DICT):
     length = len(reverse_base)
     ret = 0

@@ -594,3 +594,171 @@ def get_sqs_queues():
         }]
 
     return urls, attributes, dead_letter_sources, result
+
+
+pg_infrastructure_account = 'aws:12345678'
+
+
+@pytest.fixture
+def fx_addresses(request):
+    return {'Addresses': [
+        {'NetworkInterfaceOwnerId': '12345678',
+         'InstanceId': 'i-1234',
+         'PublicIp': '12.23.34.45',
+         'AllocationId': 'eipalloc-12345678'},
+        {'NetworkInterfaceOwnerId': '12345678',
+         'PublicIp': '22.33.44.55',
+         'AllocationId': 'eipalloc-22334455'},
+        {'NetworkInterfaceOwnerId': '32165478',
+         'InstanceId': 'i-7777',
+         'PublicIp': '12.23.43.54',
+         'AllocationId': 'eipalloc-45454545'}]}
+
+
+@pytest.fixture
+def fx_addresses_expected(request):
+    return [
+        {'NetworkInterfaceOwnerId': '12345678',
+         'InstanceId': 'i-1234',
+         'PublicIp': '12.23.34.45',
+         'AllocationId': 'eipalloc-12345678'},
+        {'NetworkInterfaceOwnerId': '12345678',
+         'PublicIp': '22.33.44.55',
+         'AllocationId': 'eipalloc-22334455'}]
+
+
+@pytest.fixture()
+def fx_asgs(request):
+    return [
+        {'type': 'asg',
+         'infrastructure_account': pg_infrastructure_account,
+         'region': 'eu-central-1',
+         'spilo_cluster': 'bla',
+         'name': 'spilo-bla',
+         'instances': [{'aws_id': 'i-1234', 'ip': '11.22.33.44'},
+                       {'aws_id': 'i-02e0', 'ip': '111.222.133.244'}]},
+        {'type': 'asg',
+         'infrastructure_account': pg_infrastructure_account,
+         'region': 'eu-central-1',
+         'spilo_cluster': 'malm',
+         'name': 'spilo-malm',
+         'instances': [{'aws_id': 'i-4444', 'ip': '10.20.30.40'},
+                       {'aws_id': 'i-5555', 'ip': '100.200.100.200'}]},
+        {'type': 'asg',
+         'infrastructure_account': pg_infrastructure_account,
+         'region': 'eu-central-1',
+         'something_else': 'foo',
+         'name': 'app-foo',
+         'instances': [{'aws_id': 'i-7845'},
+                       {'aws_id': 'i-9854'}]},
+        {'type': 'asg',
+         'infrastructure_account': 'aws:32165487',
+         'region': 'eu-central-1',
+         'spilo_cluster': 'baz',
+         'name': 'spilo-baz',
+         'instances': [{'aws_id': 'i-6587'},
+                       {'aws_id': 'i-6565'}]}]
+
+
+@pytest.fixture()
+def fx_asgs_expected(request):
+    return [
+        {'type': 'asg',
+         'infrastructure_account': pg_infrastructure_account,
+         'region': 'eu-central-1',
+         'spilo_cluster': 'bla',
+         'name': 'spilo-bla',
+         'instances': [{'aws_id': 'i-1234', 'ip': '11.22.33.44'},
+                       {'aws_id': 'i-02e0', 'ip': '111.222.133.244'}]},
+        {'type': 'asg',
+         'infrastructure_account': pg_infrastructure_account,
+         'region': 'eu-central-1',
+         'spilo_cluster': 'malm',
+         'name': 'spilo-malm',
+         'instances': [{'aws_id': 'i-4444', 'ip': '10.20.30.40'},
+                       {'aws_id': 'i-5555', 'ip': '100.200.100.200'}]}]
+
+
+@pytest.fixture()
+def fx_pg_instances(request):
+    return [{'type': 'instance',
+             'infrastructure_account': pg_infrastructure_account,
+             'aws_id': 'i-1234',
+             'ip': '192.168.1.1',
+             'role': 'master',
+             'stack_name': 'spilo'},
+            {'type': 'instance',
+             'infrastructure_account': pg_infrastructure_account,
+             'aws_id': 'i-02e0',
+             'ip': '192.168.1.3',
+             'role': 'replica',
+             'stack_name': 'spilo'},
+            {'type': 'instance',
+             'infrastructure_account': pg_infrastructure_account,
+             'aws_id': 'i-4444',
+             'ip': '192.168.13.32',
+             'role': 'master',
+             'stack_name': 'spilo'},
+            {'type': 'instance',
+             'infrastructure_account': pg_infrastructure_account,
+             'aws_id': 'i-5555',
+             'ip': '192.168.31.154',
+             'role': 'replica',
+             'stack_name': 'spilo'},
+            {'type': 'instance',
+             'infrastructure_account': 'aws:32165487',
+             'aws_id': 'i-4321',
+             'ip': '192.168.1.2',
+             'role': 'replica',
+             'stack_name': 'spilo'}]
+
+
+@pytest.fixture()
+def fx_pg_instances_expected(request):
+    return [{'type': 'instance',
+             'infrastructure_account': pg_infrastructure_account,
+             'aws_id': 'i-1234',
+             'ip': '192.168.1.1',
+             'role': 'master',
+             'stack_name': 'spilo'},
+            {'type': 'instance',
+             'infrastructure_account': pg_infrastructure_account,
+             'aws_id': 'i-02e0',
+             'ip': '192.168.1.3',
+             'role': 'replica',
+             'stack_name': 'spilo'},
+            {'type': 'instance',
+             'infrastructure_account': pg_infrastructure_account,
+             'aws_id': 'i-4444',
+             'ip': '192.168.13.32',
+             'role': 'master',
+             'stack_name': 'spilo'},
+            {'type': 'instance',
+             'infrastructure_account': pg_infrastructure_account,
+             'aws_id': 'i-5555',
+             'ip': '192.168.31.154',
+             'role': 'replica',
+             'stack_name': 'spilo'}]
+
+
+@pytest.fixture()
+def fx_eip_allocation(request):
+    return 'eipalloc-22334455'
+
+
+@pytest.fixture()
+def fx_launch_configuration(request):
+    return {'LaunchConfigurations': [
+               {'LaunchConfigurationName': 'spilo-malm-AppServerInstanceProfile-66CCXX77EEPP',
+                'UserData': 'ZW52aXJvbm1lbnQ6IHtFSVBfQUxMT0NBVElPTjogZWlwYWxsb2MtMjIzMzQ0NTV9Cg=='},
+               {'LaunchConfigurationName': 'spilo-foo-staging-AppServerInstanceProfile-66CCXX77YYZZ',
+                'UserData': 'ZW52aXJvbm1lbnQ6IHtFSVBfQUxMTzMzQ0NTV9Cg=='}]}
+
+
+@pytest.fixture()
+def fx_launch_configuration_expected(request):
+    return {'malm': 'ZW52aXJvbm1lbnQ6IHtFSVBfQUxMT0NBVElPTjogZWlwYWxsb2MtMjIzMzQ0NTV9Cg==',
+            'foo-staging': 'ZW52aXJvbm1lbnQ6IHtFSVBfQUxMTzMzQ0NTV9Cg=='}
+
+
+PG_CLUSTER = 'malm'

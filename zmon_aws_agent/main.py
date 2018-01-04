@@ -161,6 +161,8 @@ def main():
         certificates = aws.get_certificates(region, infrastructure_account)
         aws_limits = aws.get_limits(region, infrastructure_account, apps, elbs)
         sqs = aws.get_sqs_queues(region, infrastructure_account, entities)
+        postgresql_clusters = postgresql.get_postgresql_clusters(region, infrastructure_account,
+                                                                 scaling_groups, apps)
 
     account_alias = aws.get_account_alias(region)
     ia_entity = {
@@ -197,6 +199,8 @@ def main():
         certificates + sqs)
     current_entities.append(aws_limits)
     current_entities.append(ia_entity)
+    current_entities.append(postgresql_clusters)
+
     for entity in current_entities:
         entity.update(entity_extras)
 
@@ -243,6 +247,7 @@ def main():
             'sqs_queues': sqs,
             'new_entities': new_entities,
             'to_be_removed': to_be_removed,
+            'posgresql_clusters': postgresql_clusters
         }
 
         print(json.dumps(d, indent=4))
