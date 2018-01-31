@@ -159,7 +159,7 @@ def main():
         elasticaches = aws.get_elasticache_nodes(region, infrastructure_account)
         dynamodbs = aws.get_dynamodb_tables(region, infrastructure_account)
         certificates = aws.get_certificates(region, infrastructure_account)
-        aws_limits = aws.get_limits(region, infrastructure_account, apps, elbs)
+        aws_limits = aws.get_limits(region, infrastructure_account, apps, elbs, entities)
         sqs = aws.get_sqs_queues(region, infrastructure_account, entities)
         postgresql_clusters = postgresql.get_postgresql_clusters(region, infrastructure_account,
                                                                  scaling_groups, apps)

@@ -448,7 +448,7 @@ def test_aws_get_limits(monkeypatch, fail):
     ec2 = MagicMock()
     account_attrs = {
         'AccountAttributes': [
-            {'AttributeName': 'max-instances', 'AttributeValues': [{'AttributeValue': '20'}]},
+            {'AttributeName': 'max-instances', 'AttributeValues': [{'AttributeValue': '30'}]},
             {'AttributeName': 'other', 'AttributeValues': [{'AttributeValue': '20'}]}
         ]
     }
@@ -505,7 +505,11 @@ def test_aws_get_limits(monkeypatch, fail):
     ]
     elbs = [{'type': 'elb'}, {'type': 'elb'}, {'type': 'elb'}]
 
-    limits = aws.get_limits(REGION, ACCOUNT, apps, elbs)
+    limits = aws.get_limits(REGION, ACCOUNT, apps, elbs, [{
+        'id': aws.entity_id('aws-limits[{}:{}]'.format(ACCOUNT, REGION)),
+        'type': 'aws_limits',
+        'ec2-max-instances': 40,
+        }])
 
     if not fail:
         expected = {
@@ -514,7 +518,7 @@ def test_aws_get_limits(monkeypatch, fail):
             'asg-used-groups': 20,
             'asg-used-launch-configurations': 20,
             'created_by': 'agent',
-            'ec2-max-instances': 20,
+            'ec2-max-instances': 30,
             'ec2-used-instances': 2,
             'ec2-max-spot-instances': 20,
             'ec2-used-spot-instances': 1,
@@ -538,7 +542,7 @@ def test_aws_get_limits(monkeypatch, fail):
     else:
         expected = {
             'created_by': 'agent',
-            'ec2-max-instances': 20,
+            'ec2-max-instances': 40,
             'ec2-used-instances': 2,
             'ec2-max-spot-instances': 20,
             'ec2-used-spot-instances': 1,
