@@ -3,6 +3,7 @@ import psycopg2
 import boto3
 import yaml
 import base64
+import traceback
 
 # better move that one to common?
 from zmon_aws_agent.aws import entity_id
@@ -35,9 +36,9 @@ def list_postgres_databases(*args, **kwargs):
         cur = conn.cursor()
         cur.execute()
         return [row[0] for row in cur.fetchall()]
-    except Exception as e:
+    except Exception:
         current_span.set_tag('error', True)
-        current_span.log_kv({'exception': str(e)})
+        current_span.log_kv({'exception':  traceback.format_exc()})
         logger.exception("Failed to list DBs!")
         return []
 
