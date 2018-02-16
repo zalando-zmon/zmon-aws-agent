@@ -5,6 +5,9 @@ from botocore.exceptions import ClientError
 
 from zmon_aws_agent import __version__
 
+import opentracing
+from opentracing import child_of, follows_from
+
 
 MAX_RETRIES = 10
 TIME_OUT = 0.5
@@ -36,3 +39,19 @@ def call_and_retry(fn, *args, **kwargs):
                     count += 1
                     continue
             raise
+
+
+def extract_tracing_span(carrier, use_follows_from=False):
+    try:
+        span_context = opentracing.tracer.extract(opentracing.Format.TEXT_MAP, carrier)
+
+        references = [follows_from(span_context)] if use_follows_from else [child_of(span_context)]
+
+        return opentracing.tracer.start_span(references=references)
+    except Exception:
+        return opentracing.tracer.start_span()
+
+
+def inject_tracing_span(span, carrier):
+    opentracing.tracer.inject(span.context, opentracing.Format.TEXT_MAP, carrier)
+    return carrier

@@ -8,27 +8,41 @@ import base64
 from zmon_aws_agent.aws import entity_id
 from zmon_aws_agent.common import call_and_retry
 
+from opentracing_utils import trace, get_span_from_kwargs
+from opentracing.ext import tags
+
 
 logger = logging.getLogger(__name__)
 
 POSTGRESQL_DEFAULT_PORT = 5432
 
 
+@trace(operation_name='list_postgres_databases', pass_span=True, tags={'aws', 'postgres'})
 def list_postgres_databases(*args, **kwargs):
     try:
-        conn = psycopg2.connect(*args, **kwargs)
-        cur = conn.cursor()
-        cur.execute("""
+        query = """
             SELECT datname
               FROM pg_database
              WHERE datname NOT IN('postgres', 'template0', 'template1')
-        """)
+        """
+        _, current_span = get_span_from_kwargs(**kwargs)
+        current_span.set_tag(tags.PEER_ADDRESS,
+                             'psql://{}:{}'.format(kwargs.get('host'), kwargs.get('port')))
+        current_span.set_tag(tags.DATABASE_INSTANCE, kwargs.get('dbname'))
+        current_span.set_tag(tags.DATABASE_STATEMENT, query)
+
+        conn = psycopg2.connect(*args, **kwargs)
+        cur = conn.cursor()
+        cur.execute()
         return [row[0] for row in cur.fetchall()]
-    except Exception:
+    except Exception as e:
+        current_span.set_tag('error', True)
+        current_span.log_kv({'exception': str(e)})
         logger.exception("Failed to list DBs!")
         return []
 
 
+@trace(operation_name='get_databases_from_clusters', tags={'aws', 'postgres', 'cluster'})
 def get_databases_from_clusters(pgclusters, infrastructure_account, region,
                                 postgresql_user, postgresql_pass):
     entities = []
@@ -63,6 +77,7 @@ def get_databases_from_clusters(pgclusters, infrastructure_account, region,
     return entities
 
 
+@trace(operation_name='collect_eip_addresses', tags={'aws', 'elb', 'eip'})
 def collect_eip_addresses(infrastructure_account):
     ec2 = boto3.client('ec2')
 
@@ -82,6 +97,7 @@ def filter_instances(infrastructure_account, instances):
     return [i for i in instances if i['infrastructure_account'] == infrastructure_account]
 
 
+@trace(operation_name='collect_launch_configurations', tags={'aws', 'asg'})
 def collect_launch_configurations(infrastructure_account):
     asg = boto3.client('autoscaling')
     lc_paginator = asg.get_paginator('describe_launch_configurations')
@@ -106,6 +122,7 @@ def extract_eipalloc_from_lc(launch_configuration, cluster_name):
     return user_data['environment'].get('EIP_ALLOCATION', '')
 
 
+@trace(operation_name='get_postgresql_clusters', tags={'aws', 'postgres', 'cluster'})
 def get_postgresql_clusters(region, infrastructure_account, asgs, insts):
     entities = []
 

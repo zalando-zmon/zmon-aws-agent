@@ -4,3 +4,5 @@ psycopg2
 pyyaml
 stups-tokens>=1.0.16
 zmon-cli>=1.1.55
+opentracing==1.2.2
+opentracing_utils

@@ -7,7 +7,12 @@ fi
 
 echo "Entity Service: " $ENTITY_SERVICE_URL
 
-if [ -z $AGENT_SLEEP_SECONDS ] ; then
+if [ -z "$OPENTRACING_TRACER" ]; then
+    OPENTRACING_TRACER="noop"
+    export OPENTRACING_TRACER
+fi
+
+if [ -z "$AGENT_SLEEP_SECONDS" ] ; then
   export AGENT_SLEEP_SECONDS=60
 fi
 

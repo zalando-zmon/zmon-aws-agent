@@ -4,6 +4,10 @@
 import argparse
 import logging
 import json
+
+from opentracing_utils import init_opentracing_tracer, trace_requests
+trace_requests()  # noqa
+
 import requests
 import tokens
 import os
@@ -86,6 +90,7 @@ def main():
     argp.add_argument('-e', '--entity-service', dest='entityservice')
     argp.add_argument('-r', '--region', dest='region', default=None)
     argp.add_argument('-j', '--json', dest='json', action='store_true')
+    argp.add_argument('-t', '--tracer', dest='tracer', default=os.environ.get('OPENTRACING_TRACER', 'noop'))
     argp.add_argument('--no-oauth2', dest='disable_oauth2', action='store_true', default=False)
     argp.add_argument('--postgresql-user', dest='postgresql_user', default=os.environ.get('AGENT_POSTGRESQL_USER'))
     argp.add_argument('--postgresql-pass', dest='postgresql_pass', default=os.environ.get('AGENT_POSTGRESQL_PASS'))
@@ -95,6 +100,22 @@ def main():
         tokens.configure()
         tokens.manage('uid', ['uid'])
         tokens.start()
+
+    # TODO: remove once latest opentracing-utils is merged with tracer env variables support!
+    tracer_kwargs = {}
+    if args.tracer == 'noop':
+        tracer_kwargs = {
+            'component_name': os.environ.get('OPENTRACING_NOOP_COMPONENT_NAME', 'zmon_aws_agent'),
+        }
+    else:
+        tracer_kwargs = {
+            'component_name': os.environ.get('OPENTRACING_LIGHTSTEP_COMPONENT_NAME'),
+            'access_token': os.environ.get('OPENTRACING_LIGHTSTEP_ACCESS_TOKEN'),
+            'collector_host': os.environ.get('OPENTRACING_LIGHTSTEP_COLLECTOR_HOST', 'collector.lightstep.com'),
+            'collector_port': int(os.environ.get('OPENTRACING_LIGHTSTEP_COLLECTOR_PORT', 443)),
+        }
+
+    init_opentracing_tracer(args.tracer, **tracer_kwargs)
 
     logging.basicConfig(level=logging.INFO)
     # 0. Fetch extra data for entities
