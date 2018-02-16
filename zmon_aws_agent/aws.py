@@ -57,7 +57,7 @@ def base_encode(integer, base=BASE_LIST):
     return ret
 
 
-@trace(operation_name='populate_dns_data', tags={'aws', 'dns'})
+@trace(tags={'aws': 'dns'})
 def populate_dns_data():
     route53 = boto3.client('route53')
     result = route53.list_hosted_zones()
@@ -156,7 +156,7 @@ def get_instance_devices(aws_client, instance):
     return devices
 
 
-@trace(operation_name='get_instance_events', tags={'aws', 'events'})
+@trace(tags={'aws': 'events'})
 def get_instance_events(aws_client, instance):
     try:
         instance_status_resp = call_and_retry(aws_client.describe_instance_status,
@@ -170,7 +170,7 @@ def get_instance_events(aws_client, instance):
     return []
 
 
-@trace(operation_name='get_running_apps', tags={'aws', 'instance'})
+@trace(tags={'aws': 'instance'})
 def get_running_apps(region, existing_entities=None):
     aws_client = boto3.client('ec2', region_name=region)
 
@@ -325,7 +325,7 @@ def get_running_elbs(region, acc):
     return get_running_elbs_classic(region, acc) + get_running_elbs_application(region, acc)
 
 
-@trace(operation_name='get_running_elbs_classic', tags={'aws', 'elb'})
+@trace(tags={'aws': 'elb'})
 def get_running_elbs_classic(region, acc):
     elb_client = boto3.client('elb', region_name=region)
 
@@ -476,7 +476,7 @@ def get_running_elbs_application(region, acc):
     return lbs
 
 
-@trace(operation_name='get_auto_scaling_groups', tags={'aws', 'asg'})
+@trace(tags={'aws': 'asg'})
 def get_auto_scaling_groups(region, acc):
     groups = []
 
@@ -534,7 +534,7 @@ def get_auto_scaling_groups(region, acc):
     return groups
 
 
-@trace(operation_name='get_elasticache_nodes', tags={'aws', 'elc'})
+@trace(tags={'aws': 'elc'})
 def get_elasticache_nodes(region, acc):
     elc = boto3.client('elasticache', region_name=region)
     paginator = elc.get_paginator('describe_cache_clusters')
@@ -577,7 +577,7 @@ def get_elasticache_nodes(region, acc):
     return nodes
 
 
-@trace(operation_name='get_dynamodb_tables', tags={'aws', 'dynamodb'})
+@trace(tags={'aws': 'dynamodb'})
 def get_dynamodb_tables(region, acc):
     tables = []
 
@@ -615,7 +615,7 @@ def get_dynamodb_tables(region, acc):
     return tables
 
 
-@trace(operation_name='get_rds_instances', tags={'aws', 'rds'})
+@trace(tags={'aws': 'rds'})
 def get_rds_instances(region, acc, existing_entities):
     entities = []
 
@@ -668,7 +668,7 @@ def get_rds_instances(region, acc, existing_entities):
     return entities
 
 
-@trace(operation_name='get_certificates', tags={'aws', 'cert'})
+@trace(tags={'aws': 'cert'})
 def get_certificates(region, acc):
     iam_client = boto3.client('iam', region_name=region)
     acm_client = boto3.client('acm', region_name=region)
@@ -719,7 +719,7 @@ def get_certificates(region, acc):
     return entities
 
 
-@trace(operation_name='get_account_alias', tags={'aws', 'iam'})
+@trace(tags={'aws': 'iam'})
 def get_account_alias(region):
     try:
         iam_client = boto3.client('iam', region_name=region)
@@ -729,7 +729,7 @@ def get_account_alias(region):
         return None
 
 
-@trace(operation_name='get_account_id', tags={'aws', 'iam'})
+@trace(tags={'aws': 'iam'})
 def get_account_id(region):
     try:
         iam_client = boto3.client('iam', region_name=region)
@@ -752,7 +752,7 @@ def get_apps_from_entities(instances, account, region):
     return applications
 
 
-@trace(operation_name='get_limits', tags={'aws', 'limits'})
+@trace(tags={'aws': 'limits'})
 def get_limits(region, acc, apps, elbs, entities):
     limits = {
         'ec2-max-instances': 20,
@@ -832,7 +832,7 @@ def get_limits(region, acc, apps, elbs, entities):
     return entity
 
 
-@trace(operation_name='get_sqs_queues', tags={'aws', 'sqs'})
+@trace(tags={'aws': 'sqs'})
 def get_sqs_queues(region, acc, all_entities=None):
     if all_entities is None:
         all_entities = []
