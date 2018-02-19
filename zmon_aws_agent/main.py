@@ -103,181 +103,170 @@ def main():
         tokens.manage('uid', ['uid'])
         tokens.start()
 
-    # TODO: remove once latest opentracing-utils is merged with tracer env variables support!
-    tracer_kwargs = {}
-    if args.tracer == 'noop':
-        tracer_kwargs = {
-            'component_name': os.environ.get('OPENTRACING_NOOP_COMPONENT_NAME', 'zmon_aws_agent'),
-        }
-    else:
-        tracer_kwargs = {
-            'component_name': os.environ.get('OPENTRACING_LIGHTSTEP_COMPONENT_NAME'),
-            'access_token': os.environ.get('OPENTRACING_LIGHTSTEP_ACCESS_TOKEN'),
-            'collector_host': os.environ.get('OPENTRACING_LIGHTSTEP_COLLECTOR_HOST', 'collector.lightstep.com'),
-            'collector_port': int(os.environ.get('OPENTRACING_LIGHTSTEP_COLLECTOR_PORT', 443)),
-        }
-
-    init_opentracing_tracer(args.tracer, **tracer_kwargs)
+    init_opentracing_tracer(args.tracer)
     root_span = opentracing.tracer.start_span(operation_name='root_span')
+    with root_span:
 
-    logging.basicConfig(level=logging.INFO)
-    # 0. Fetch extra data for entities
-    entity_extras = {}
-    for ex in os.getenv('EXTRA_ENTITY_FIELDS', '').split(','):
-        if '=' not in ex:
-            continue
-        k, v = ex.split('=', 1)
-        if k and v:
-            entity_extras[k] = v
+        logging.basicConfig(level=logging.INFO)
+        # 0. Fetch extra data for entities
+        entity_extras = {}
+        for ex in os.getenv('EXTRA_ENTITY_FIELDS', '').split(','):
+            if '=' not in ex:
+                continue
+            k, v = ex.split('=', 1)
+            if k and v:
+                entity_extras[k] = v
 
-    # 1. Determine region
-    if not args.region:
-        logger.info('Trying to figure out region..')
-        try:
-            response = requests.get('http://169.254.169.254/latest/meta-data/placement/availability-zone', timeout=2)
-        except Exception:
-            logger.exception('Region was not specified as a parameter and can not be fetched from instance meta-data!')
-            raise
-        region = response.text[:-1]
-    else:
-        region = args.region
+        # 1. Determine region
+        if not args.region:
+            logger.info('Trying to figure out region..')
+            try:
+                response = requests.get('http://169.254.169.254/latest/meta-data/placement/availability-zone',
+                                        timeout=2)
+            except Exception:
+                logger.exception('Region was not specified as a parameter and' +
+                                 'can not be fetched from instance meta-data!')
+                raise
+            region = response.text[:-1]
+        else:
+            region = args.region
 
-    root_span.set_tag('agent_region', region)
+        root_span.set_tag('agent_region', region)
 
-    logger.info('Using region: {}'.format(region))
+        logger.info('Using region: {}'.format(region))
 
-    logger.info('Entity service URL: %s', args.entityservice)
+        logger.info('Entity service URL: %s', args.entityservice)
 
-    logger.info('Reading DNS data for hosted zones')
-    aws.populate_dns_data()
+        logger.info('Reading DNS data for hosted zones')
+        aws.populate_dns_data()
 
-    aws_account_id = aws.get_account_id(region)
-    infrastructure_account = 'aws:{}'.format(aws_account_id) if aws_account_id else None
+        aws_account_id = aws.get_account_id(region)
+        infrastructure_account = 'aws:{}'.format(aws_account_id) if aws_account_id else None
 
-    if not infrastructure_account:
-        logger.error('AWS agent: Cannot determine infrastructure account ID. Terminating!')
-        return
-    root_span.set_tag('agent_account', infrastructure_account)
+        if not infrastructure_account:
+            logger.error('AWS agent: Cannot determine infrastructure account ID. Terminating!')
+            return
+        root_span.set_tag('agent_account', infrastructure_account)
 
-    # 2. ZMON entities
-    token = None if args.disable_oauth2 else tokens.get('uid')
-    zmon_client = Zmon(args.entityservice, token=token, user_agent=get_user_agent())
+        # 2. ZMON entities
+        token = None if args.disable_oauth2 else tokens.get('uid')
+        zmon_client = Zmon(args.entityservice, token=token, user_agent=get_user_agent())
 
-    query = {'infrastructure_account': infrastructure_account, 'region': region, 'created_by': 'agent'}
-    entities = zmon_client.get_entities(query)
+        query = {'infrastructure_account': infrastructure_account, 'region': region, 'created_by': 'agent'}
+        entities = zmon_client.get_entities(query)
 
-    # 3. Get running apps
-    apps = aws.get_running_apps(region, entities)
+        # 3. Get running apps
+        apps = aws.get_running_apps(region, entities)
 
-    elbs = []
-    scaling_groups = []
-    rds = []
-    elasticaches = []
-    dynamodbs = []
-    sqs = []
+        elbs = []
+        scaling_groups = []
+        rds = []
+        elasticaches = []
+        dynamodbs = []
+        sqs = []
 
-    new_entities = []
-    to_be_removed = []
+        new_entities = []
+        to_be_removed = []
 
-    if len(apps) > 0:
-        elbs = aws.get_running_elbs(region, infrastructure_account)
-        scaling_groups = aws.get_auto_scaling_groups(region, infrastructure_account)
-        rds = aws.get_rds_instances(region, infrastructure_account, entities)
-        elasticaches = aws.get_elasticache_nodes(region, infrastructure_account)
-        dynamodbs = aws.get_dynamodb_tables(region, infrastructure_account)
-        certificates = aws.get_certificates(region, infrastructure_account)
-        aws_limits = aws.get_limits(region, infrastructure_account, apps, elbs, entities)
-        sqs = aws.get_sqs_queues(region, infrastructure_account, entities)
-        postgresql_clusters = postgresql.get_postgresql_clusters(region, infrastructure_account,
-                                                                 scaling_groups, apps)
+        if len(apps) > 0:
+            elbs = aws.get_running_elbs(region, infrastructure_account)
+            scaling_groups = aws.get_auto_scaling_groups(region, infrastructure_account)
+            rds = aws.get_rds_instances(region, infrastructure_account, entities)
+            elasticaches = aws.get_elasticache_nodes(region, infrastructure_account)
+            dynamodbs = aws.get_dynamodb_tables(region, infrastructure_account)
+            certificates = aws.get_certificates(region, infrastructure_account)
+            aws_limits = aws.get_limits(region, infrastructure_account, apps, elbs, entities)
+            sqs = aws.get_sqs_queues(region, infrastructure_account, entities)
+            postgresql_clusters = postgresql.get_postgresql_clusters(region, infrastructure_account,
+                                                                     scaling_groups, apps)
 
-    account_alias = aws.get_account_alias(region)
-    ia_entity = {
-        'type': 'local',
-        'infrastructure_account': infrastructure_account,
-        'account_alias': account_alias,
-        'region': region,
-        'id': 'aws-ac[{}:{}]'.format(infrastructure_account, region),
-        'created_by': 'agent',
-    }
-
-    application_entities = aws.get_apps_from_entities(apps, infrastructure_account, region)
-
-    if args.postgresql_user and args.postgresql_pass:
-        postgresql_clusters = zmon_client.get_entities({
+        account_alias = aws.get_account_alias(region)
+        ia_entity = {
+            'type': 'local',
             'infrastructure_account': infrastructure_account,
+            'account_alias': account_alias,
             'region': region,
-            'type': 'postgresql_cluster'
-        })
-        postgresql_databases = postgresql.get_databases_from_clusters(postgresql_clusters,
-                                                                      infrastructure_account,
-                                                                      region,
-                                                                      args.postgresql_user,
-                                                                      args.postgresql_pass)
-    else:
-        # Pretend the list of DBs is empty, but also make sure we don't remove
-        # any pre-existing database entities because we don't know about them.
-        postgresql_databases = []
-        entities = [e for e in entities if e.get('type') != 'postgresql_database']
-
-    current_entities = (
-        elbs + scaling_groups + apps + application_entities +
-        rds + postgresql_databases + elasticaches + dynamodbs +
-        certificates + sqs)
-    current_entities.append(aws_limits)
-    current_entities.append(ia_entity)
-    current_entities.append(postgresql_clusters)
-
-    for entity in current_entities:
-        entity.update(entity_extras)
-
-    # 4. Removing misssing entities
-    existing_ids = get_existing_ids(entities)
-    current_entities_ids = {e['id'] for e in current_entities}
-
-    to_be_removed, delete_error_count = remove_missing_entities(
-        existing_ids, current_entities_ids, zmon_client, json=args.json)
-
-    logger.info('Found {} removed entities from {} entities ({} failed)'.format(
-        len(new_entities), len(current_entities), delete_error_count))
-
-    # 5. Get new/updated entities
-    new_entities, add_error_count = add_new_entities(current_entities, entities, zmon_client, json=args.json)
-
-    logger.info('Found {} new entities from {} entities ({} failed)'.format(
-        len(new_entities), len(current_entities), add_error_count))
-
-    # 6. Always add Local entity
-    if not args.json:
-        ia_entity['errors'] = {'delete_count': delete_error_count, 'add_count': add_error_count}
-        try:
-            zmon_client.add_entity(ia_entity)
-        except Exception:
-            logger.exception('Failed to add Local entity: {}'.format(ia_entity))
-
-    types = {e['type']: len([t for t in new_entities if t['type'] == e['type']]) for e in new_entities}
-
-    for t, v in types.items():
-        logger.info('Found {} new entities of type: {}'.format(v, t))
-
-    # Check if it is a dry run!
-    if args.json:
-        d = {
-            'applications': application_entities,
-            'apps': apps,
-            'dynamodb': dynamodbs,
-            'elbs': elbs,
-            'elc': elasticaches,
-            'rds': rds,
-            'certificates': certificates,
-            'aws_limits': aws_limits,
-            'sqs_queues': sqs,
-            'new_entities': new_entities,
-            'to_be_removed': to_be_removed,
-            'posgresql_clusters': postgresql_clusters
+            'id': 'aws-ac[{}:{}]'.format(infrastructure_account, region),
+            'created_by': 'agent',
         }
 
-        print(json.dumps(d, indent=4))
+        application_entities = aws.get_apps_from_entities(apps, infrastructure_account, region)
+
+        if args.postgresql_user and args.postgresql_pass:
+            postgresql_clusters = zmon_client.get_entities({
+                'infrastructure_account': infrastructure_account,
+                'region': region,
+                'type': 'postgresql_cluster'
+            })
+            postgresql_databases = postgresql.get_databases_from_clusters(postgresql_clusters,
+                                                                          infrastructure_account,
+                                                                          region,
+                                                                          args.postgresql_user,
+                                                                          args.postgresql_pass)
+        else:
+            # Pretend the list of DBs is empty, but also make sure we don't remove
+            # any pre-existing database entities because we don't know about them.
+            postgresql_databases = []
+            entities = [e for e in entities if e.get('type') != 'postgresql_database']
+
+        current_entities = (
+            elbs + scaling_groups + apps + application_entities +
+            rds + postgresql_databases + elasticaches + dynamodbs +
+            certificates + sqs)
+        current_entities.append(aws_limits)
+        current_entities.append(ia_entity)
+        current_entities.append(postgresql_clusters)
+
+        for entity in current_entities:
+            entity.update(entity_extras)
+
+        # 4. Removing misssing entities
+        existing_ids = get_existing_ids(entities)
+        current_entities_ids = {e['id'] for e in current_entities}
+
+        to_be_removed, delete_error_count = remove_missing_entities(
+            existing_ids, current_entities_ids, zmon_client, json=args.json)
+
+        logger.info('Found {} removed entities from {} entities ({} failed)'.format(
+            len(new_entities), len(current_entities), delete_error_count))
+
+        # 5. Get new/updated entities
+        new_entities, add_error_count = add_new_entities(current_entities, entities, zmon_client, json=args.json)
+
+        logger.info('Found {} new entities from {} entities ({} failed)'.format(
+            len(new_entities), len(current_entities), add_error_count))
+
+        # 6. Always add Local entity
+        if not args.json:
+            ia_entity['errors'] = {'delete_count': delete_error_count, 'add_count': add_error_count}
+            try:
+                zmon_client.add_entity(ia_entity)
+            except Exception:
+                logger.exception('Failed to add Local entity: {}'.format(ia_entity))
+
+        types = {e['type']: len([t for t in new_entities if t['type'] == e['type']]) for e in new_entities}
+
+        for t, v in types.items():
+            logger.info('Found {} new entities of type: {}'.format(v, t))
+
+        # Check if it is a dry run!
+        if args.json:
+            d = {
+                'applications': application_entities,
+                'apps': apps,
+                'dynamodb': dynamodbs,
+                'elbs': elbs,
+                'elc': elasticaches,
+                'rds': rds,
+                'certificates': certificates,
+                'aws_limits': aws_limits,
+                'sqs_queues': sqs,
+                'new_entities': new_entities,
+                'to_be_removed': to_be_removed,
+                'posgresql_clusters': postgresql_clusters
+            }
+
+            print(json.dumps(d, indent=4))
 
 
 if __name__ == '__main__':
