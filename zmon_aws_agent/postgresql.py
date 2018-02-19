@@ -79,8 +79,8 @@ def get_databases_from_clusters(pgclusters, infrastructure_account, region,
 
 
 @trace(tags={'aws': 'elb'})
-def collect_eip_addresses(infrastructure_account):
-    ec2 = boto3.client('ec2')
+def collect_eip_addresses(infrastructure_account, region):
+    ec2 = boto3.client('ec2', region_name=region)
 
     addresses = call_and_retry(ec2.describe_addresses)['Addresses']
 
@@ -128,7 +128,7 @@ def get_postgresql_clusters(region, infrastructure_account, asgs, insts):
     entities = []
 
     try:
-        addresses = collect_eip_addresses(infrastructure_account)
+        addresses = collect_eip_addresses(infrastructure_account, region)
         spilo_asgs = filter_asgs(infrastructure_account, asgs)
         instances = filter_instances(infrastructure_account, insts)
     except Exception:
