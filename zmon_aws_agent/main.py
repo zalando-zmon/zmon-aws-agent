@@ -8,6 +8,8 @@ import json
 from opentracing_utils import init_opentracing_tracer, trace_requests
 trace_requests()  # noqa
 
+import opentracing
+
 import requests
 import tokens
 import os
@@ -116,6 +118,7 @@ def main():
         }
 
     init_opentracing_tracer(args.tracer, **tracer_kwargs)
+    root_span = opentracing.tracer.start_span(operation_name='root_span')
 
     logging.basicConfig(level=logging.INFO)
     # 0. Fetch extra data for entities
@@ -139,6 +142,8 @@ def main():
     else:
         region = args.region
 
+    root_span.set_tag('agent_region', region)
+
     logger.info('Using region: {}'.format(region))
 
     logger.info('Entity service URL: %s', args.entityservice)
@@ -152,6 +157,7 @@ def main():
     if not infrastructure_account:
         logger.error('AWS agent: Cannot determine infrastructure account ID. Terminating!')
         return
+    root_span.set_tag('agent_account', infrastructure_account)
 
     # 2. ZMON entities
     token = None if args.disable_oauth2 else tokens.get('uid')
