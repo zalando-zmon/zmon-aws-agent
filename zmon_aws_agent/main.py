@@ -104,7 +104,7 @@ def main():
         tokens.start()
 
     init_opentracing_tracer(args.tracer)
-    root_span = opentracing.tracer.start_span(operation_name='root_span')
+    root_span = opentracing.tracer.start_span(operation_name='aws_entity_discovery')
     with root_span:
 
         logging.basicConfig(level=logging.INFO)
@@ -131,7 +131,7 @@ def main():
         else:
             region = args.region
 
-        root_span.set_tag('agent_region', region)
+        root_span.set_tag('region', region)
 
         logger.info('Using region: {}'.format(region))
 
@@ -146,7 +146,7 @@ def main():
         if not infrastructure_account:
             logger.error('AWS agent: Cannot determine infrastructure account ID. Terminating!')
             return
-        root_span.set_tag('agent_account', infrastructure_account)
+        root_span.set_tag('account', infrastructure_account)
 
         # 2. ZMON entities
         token = None if args.disable_oauth2 else tokens.get('uid')
