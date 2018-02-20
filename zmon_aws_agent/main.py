@@ -5,9 +5,9 @@ import argparse
 import logging
 import json
 
-from opentracing_utils import init_opentracing_tracer, trace_requests, get_parent_span
+from opentracing_utils import init_opentracing_tracer, trace_requests
 trace_requests()  # noqa
-
+from opentracing_utils.span import get_parent_span
 import opentracing
 
 import requests
