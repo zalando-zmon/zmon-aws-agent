@@ -54,7 +54,7 @@ def test_collect_eip_addresses(monkeypatch, fx_addresses):
     ec2.describe_addresses.return_value = fx_addresses
     boto = get_boto_client(monkeypatch, ec2)
 
-    res = postgresql.collect_eip_addresses(conftest.pg_infrastructure_account)
+    res = postgresql.collect_eip_addresses(conftest.pg_infrastructure_account, conftest.pg_region)
 
     assert res == [{'NetworkInterfaceOwnerId': '12345678',
                     'InstanceId': 'i-1234',
