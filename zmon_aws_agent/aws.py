@@ -684,7 +684,7 @@ def get_rds_instances(region, acc, existing_entities, **kwargs):
     return entities
 
 
-@trace(tags={'aws': 'cert'}, pass_span=True)
+@trace(tags={'aws': 'acm'}, pass_span=True)
 def get_certificates(region, acc, **kwargs):
     iam_client = boto3.client('iam', region_name=region)
     acm_client = boto3.client('acm', region_name=region)
