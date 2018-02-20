@@ -265,18 +265,17 @@ def main():
         to_be_removed, delete_error_count = remove_missing_entities(
             existing_ids, current_entities_ids, zmon_client, json=args.json)
 
-        msg = 'Found {} removed entities from {} entities ({} failed)'.format(
-            len(new_entities), len(current_entities), delete_error_count)
-        root_span.log_kv({'log_removed': msg})
-        logger.info(msg)
+        root_span.log_kv({'total_entitites': str(len(current_entities))})
+        root_span.log_kv({'removed_entities': str(len(to_be_removed))})
+        logger.info('Found {} removed entities from {} entities ({} failed)'.format(
+                    len(to_be_removed), len(current_entities), delete_error_count))
 
         # 5. Get new/updated entities
         new_entities, add_error_count = add_new_entities(current_entities, entities, zmon_client, json=args.json)
 
-        msg = 'Found {} new entities from {} entities ({} failed)'.format(
-            len(new_entities), len(current_entities), add_error_count)
-        root_span.log_kv({'log_new': msg})
-        logger.info(msg)
+        root_span.log_kv({'new_entities': str(len(new_entities))})
+        logger.info('Found {} new entities from {} entities ({} failed)'.format(
+                    len(new_entities), len(current_entities), add_error_count))
 
         # 6. Always add Local entity
         if not args.json:
