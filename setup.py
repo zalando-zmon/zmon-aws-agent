@@ -39,6 +39,7 @@ setup(
     setup_requires=['pytest-runner'],
     test_suite='tests',
     tests_require=['pytest', 'pytest_cov', 'mock==2.0.0'],
+    dependency_links=['git+https://github.com/zalando-zmon/opentracing-utils.git#egg=opentracing_utils'],
     entry_points={
         'console_scripts': CONSOLE_SCRIPTS
     },

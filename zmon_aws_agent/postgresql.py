@@ -3,10 +3,14 @@ import psycopg2
 import boto3
 import yaml
 import base64
+import traceback
 
 # better move that one to common?
 from zmon_aws_agent.aws import entity_id
 from zmon_aws_agent.common import call_and_retry
+
+from opentracing_utils import trace, extract_span_from_kwargs
+from opentracing.ext import tags as ot_tags
 
 
 logger = logging.getLogger(__name__)
@@ -14,21 +18,32 @@ logger = logging.getLogger(__name__)
 POSTGRESQL_DEFAULT_PORT = 5432
 
 
+@trace(pass_span=True, tags={'aws': 'postgres'})
 def list_postgres_databases(*args, **kwargs):
     try:
-        conn = psycopg2.connect(*args, **kwargs)
-        cur = conn.cursor()
-        cur.execute("""
+        query = """
             SELECT datname
               FROM pg_database
              WHERE datname NOT IN('postgres', 'template0', 'template1')
-        """)
+        """
+        current_span = extract_span_from_kwargs(**kwargs)
+        current_span.set_tag(ot_tags.PEER_ADDRESS,
+                             'psql://{}:{}'.format(kwargs.get('host'), kwargs.get('port')))
+        current_span.set_tag(ot_tags.DATABASE_INSTANCE, kwargs.get('dbname'))
+        current_span.set_tag(ot_tags.DATABASE_STATEMENT, query)
+
+        conn = psycopg2.connect(*args, **kwargs)
+        cur = conn.cursor()
+        cur.execute()
         return [row[0] for row in cur.fetchall()]
     except Exception:
+        current_span.set_tag('error', True)
+        current_span.log_kv({'exception':  traceback.format_exc()})
         logger.exception("Failed to list DBs!")
         return []
 
 
+@trace(tags={'aws': 'postgres'})
 def get_databases_from_clusters(pgclusters, infrastructure_account, region,
                                 postgresql_user, postgresql_pass):
     entities = []
@@ -63,8 +78,9 @@ def get_databases_from_clusters(pgclusters, infrastructure_account, region,
     return entities
 
 
-def collect_eip_addresses(infrastructure_account):
-    ec2 = boto3.client('ec2')
+@trace()
+def collect_eip_addresses(infrastructure_account, region):
+    ec2 = boto3.client('ec2', region_name=region)
 
     addresses = call_and_retry(ec2.describe_addresses)['Addresses']
 
@@ -82,6 +98,7 @@ def filter_instances(infrastructure_account, instances):
     return [i for i in instances if i['infrastructure_account'] == infrastructure_account]
 
 
+@trace(tags={'aws': 'asg'})
 def collect_launch_configurations(infrastructure_account):
     asg = boto3.client('autoscaling')
     lc_paginator = asg.get_paginator('describe_launch_configurations')
@@ -106,11 +123,12 @@ def extract_eipalloc_from_lc(launch_configuration, cluster_name):
     return user_data['environment'].get('EIP_ALLOCATION', '')
 
 
+@trace(tags={'aws': 'postgres'})
 def get_postgresql_clusters(region, infrastructure_account, asgs, insts):
     entities = []
 
     try:
-        addresses = collect_eip_addresses(infrastructure_account)
+        addresses = collect_eip_addresses(infrastructure_account, region)
         spilo_asgs = filter_asgs(infrastructure_account, asgs)
         instances = filter_instances(infrastructure_account, insts)
     except Exception:

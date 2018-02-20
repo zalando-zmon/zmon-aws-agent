@@ -597,6 +597,7 @@ def get_sqs_queues():
 
 
 pg_infrastructure_account = 'aws:12345678'
+pg_region = REGION
 
 
 @pytest.fixture
