@@ -5,9 +5,8 @@ import argparse
 import logging
 import json
 
-from opentracing_utils import init_opentracing_tracer, trace_requests
+from opentracing_utils import init_opentracing_tracer, trace_requests, trace, extract_span_from_kwargs
 trace_requests()  # noqa
-from opentracing_utils.span import get_parent_span
 import opentracing
 
 import requests
@@ -67,6 +66,21 @@ def new_or_updated_entity(entity, existing_entities_dict):
     return not compare_entities(entity, existing_entities_dict[entity['id']])
 
 
+@trace(pass_span=True)
+def add_entity(zmon_client, entity, **kwargs):
+    current_span = extract_span_from_kwargs(**kwargs)
+    current_span.set_tag('entity_type', entity['type'])
+    current_span.set_tag('entity_id', entity['id'])
+    try:
+        logger.info('Adding new {} entity with ID: {}'.format(entity['type'], entity['id']))
+        zmon_client.add_entity(entity)
+        return 0
+    except Exception:
+        logger.exception('Failed to add entity: {}'.format(entity))
+        return 1
+
+
+@trace()
 def add_new_entities(all_current_entities, existing_entities, zmon_client, json=False):
     existing_entities_dict = {e['id']: e for e in existing_entities}
     new_entities = [e for e in all_current_entities if new_or_updated_entity(e, existing_entities_dict)]
@@ -76,15 +90,16 @@ def add_new_entities(all_current_entities, existing_entities, zmon_client, json=
     if not json:
         logger.info('Adding {} new entities in ZMON'.format(len(new_entities)))
         for entity in new_entities:
-            try:
-                logger.info('Adding new {} entity with ID: {}'.format(entity['type'], entity['id']))
-
-                zmon_client.add_entity(entity)
-            except Exception:
-                logger.exception('Failed to add entity: {}'.format(entity))
-                error_count += 1
-
+            error_count += add_entity(zmon_client, entity)
     return new_entities, error_count
+
+
+@trace()
+def update_local_entity(zmon_client, entity):
+    try:
+        zmon_client.add_entity(entity)
+    except Exception:
+        logger.exception('Failed to add Local entity: {}'.format(entity))
 
 
 def main():
@@ -149,7 +164,8 @@ def main():
         root_span.set_tag('account', infrastructure_account)
 
         # 2. ZMON entities
-        token = None if args.disable_oauth2 else tokens.get('uid')
+        if not args.disable_oauth2:
+            token = os.getenv('ZMON_TOKEN', None) or tokens.get('uid')
         zmon_client = Zmon(args.entityservice, token=token, user_agent=get_user_agent())
 
         query = {'infrastructure_account': infrastructure_account, 'region': region, 'created_by': 'agent'}
@@ -233,13 +249,7 @@ def main():
         # 6. Always add Local entity
         if not args.json:
             ia_entity['errors'] = {'delete_count': delete_error_count, 'add_count': add_error_count}
-
-            _, current_span = get_parent_span()
-            with opentracing.tracer.start_span(operation_name='update_local_entity', child_of=current_span):
-                try:
-                    zmon_client.add_entity(ia_entity)
-                except Exception:
-                    logger.exception('Failed to add Local entity: {}'.format(ia_entity))
+            update_local_entity(zmon_client, ia_entity)
 
         types = {e['type']: len([t for t in new_entities if t['type'] == e['type']]) for e in new_entities}
 
