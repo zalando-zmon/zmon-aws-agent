@@ -234,7 +234,8 @@ def main():
         if not args.json:
             ia_entity['errors'] = {'delete_count': delete_error_count, 'add_count': add_error_count}
 
-            with opentracing.tracer.start_span(operation_name='update_local_entity', child_of=get_parent_span()):
+            _, current_span = get_parent_span()
+            with opentracing.tracer.start_span(operation_name='update_local_entity', child_of=current_span):
                 try:
                     zmon_client.add_entity(ia_entity)
                 except Exception:
