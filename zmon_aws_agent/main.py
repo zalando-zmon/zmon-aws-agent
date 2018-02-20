@@ -12,6 +12,7 @@ import opentracing
 import requests
 import tokens
 import os
+import traceback
 
 from zmon_cli.client import Zmon, compare_entities
 
@@ -46,6 +47,8 @@ def remove_entity(zmon_client, entity_id, **kwargs):
             logger.error('Failed to delete entity!')
             return 1
     except Exception:
+        current_span.set_tag('error', True)
+        current_span.log_kv({'exception':  traceback.format_exc()})
         logger.exception('Exception while deleting entity: {}'.format(entity_id))
         return 1
     return 0
@@ -85,6 +88,8 @@ def add_entity(zmon_client, entity, **kwargs):
         zmon_client.add_entity(entity)
         return 0
     except Exception:
+        current_span.set_tag('error', True)
+        current_span.log_kv({'exception':  traceback.format_exc()})
         logger.exception('Failed to add entity: {}'.format(entity))
         return 1
 
@@ -112,6 +117,8 @@ def update_local_entity(zmon_client, entity, **kwargs):
     try:
         zmon_client.add_entity(entity)
     except Exception:
+        current_span.set_tag('error', True)
+        current_span.log_kv({'exception':  traceback.format_exc()})
         logger.exception('Failed to add Local entity: {}'.format(entity))
 
 
@@ -152,6 +159,8 @@ def main():
                 response = requests.get('http://169.254.169.254/latest/meta-data/placement/availability-zone',
                                         timeout=2)
             except Exception:
+                root_span.set_tag('error', True)
+                root_span.log_kv({'exception':  traceback.format_exc()})
                 logger.exception('Region was not specified as a parameter and' +
                                  'can not be fetched from instance meta-data!')
                 raise
@@ -256,14 +265,18 @@ def main():
         to_be_removed, delete_error_count = remove_missing_entities(
             existing_ids, current_entities_ids, zmon_client, json=args.json)
 
-        logger.info('Found {} removed entities from {} entities ({} failed)'.format(
-            len(new_entities), len(current_entities), delete_error_count))
+        msg = 'Found {} removed entities from {} entities ({} failed)'.format(
+            len(new_entities), len(current_entities), delete_error_count)
+        root_span.log_kv({'log_removed': msg})
+        logger.info(msg)
 
         # 5. Get new/updated entities
         new_entities, add_error_count = add_new_entities(current_entities, entities, zmon_client, json=args.json)
 
-        logger.info('Found {} new entities from {} entities ({} failed)'.format(
-            len(new_entities), len(current_entities), add_error_count))
+        msg = 'Found {} new entities from {} entities ({} failed)'.format(
+            len(new_entities), len(current_entities), add_error_count)
+        root_span.log_kv({'log_new': msg})
+        logger.info(msg)
 
         # 6. Always add Local entity
         if not args.json:
