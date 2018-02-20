@@ -620,9 +620,7 @@ def get_dynamodb_tables(region, acc, **kwargs):
 
             tables.append(table)
     except Exception:
-        current_span = extract_span_from_kwargs(**kwargs)
-        current_span.set_tag('error', True)
-        current_span.log_kv({'exception':  traceback.format_exc()})
+        current_span.log_kv({'exception': 'Got exception while listing dynamodb tables, IAM role has no access?'})
         logger.exception('Got exception while listing dynamodb tables, IAM role has no access?')
 
     return tables
