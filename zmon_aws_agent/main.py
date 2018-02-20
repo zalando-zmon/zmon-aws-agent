@@ -209,7 +209,7 @@ def main():
         account_alias_prefix = os.getenv('ACCOUNT_ALIAS_PREFIX', None)
         owner = account_alias
         if account_alias_prefix:
-            owner.replace(account_alias_prefix, '', 1)
+            owner = owner.replace(account_alias_prefix, '', 1)
         root_span.set_tag('team', owner)
 
         application_entities = aws.get_apps_from_entities(apps, infrastructure_account, region)
