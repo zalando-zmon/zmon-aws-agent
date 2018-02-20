@@ -78,7 +78,7 @@ def get_databases_from_clusters(pgclusters, infrastructure_account, region,
     return entities
 
 
-@trace(tags={'aws': 'elb'})
+@trace()
 def collect_eip_addresses(infrastructure_account, region):
     ec2 = boto3.client('ec2', region_name=region)
 

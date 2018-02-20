@@ -104,8 +104,11 @@ def add_new_entities(all_current_entities, existing_entities, zmon_client, json=
     return new_entities, error_count
 
 
-@trace()
-def update_local_entity(zmon_client, entity):
+@trace(pass_span=True)
+def update_local_entity(zmon_client, entity, **kwargs):
+    current_span = extract_span_from_kwargs(**kwargs)
+    current_span.set_tag('entity_type', 'local')
+    current_span.set_tag('entity_id', entity['id'])
     try:
         zmon_client.add_entity(entity)
     except Exception:

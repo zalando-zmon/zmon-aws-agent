@@ -397,7 +397,7 @@ def get_running_elbs_classic(region, acc):
     return lbs
 
 
-@trace(operation_name='get_running_elbs_application', tags={'aws', 'elb'})
+@trace(tags={'aws': 'elb'})
 def get_running_elbs_application(region, acc):
     elb_client = boto3.client('elbv2', region_name=region)
 
