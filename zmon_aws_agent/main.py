@@ -33,6 +33,25 @@ def get_existing_ids(existing_entities):
     return {entity['id'] for entity in existing_entities}
 
 
+@trace(pass_span=True)
+def remove_entity(zmon_client, entity_id, **kwargs):
+    current_span = extract_span_from_kwargs(**kwargs)
+    current_span.set_tag('entity_id', entity_id)
+    try:
+        logger.info('Removing entity with id: {}'.format(entity_id))
+
+        deleted = zmon_client.delete_entity(entity_id)
+
+        if not deleted:
+            logger.error('Failed to delete entity!')
+            return 1
+    except Exception:
+        logger.exception('Exception while deleting entity: {}'.format(entity_id))
+        return 1
+    return 0
+
+
+@trace()
 def remove_missing_entities(existing_ids, current_ids, zmon_client, json=False):
     to_be_removed_ids = list(set(existing_ids) - set(current_ids))
 
@@ -41,17 +60,7 @@ def remove_missing_entities(existing_ids, current_ids, zmon_client, json=False):
     if not json:
         logger.info('Removing {} entities from ZMON'.format(len(to_be_removed_ids)))
         for entity_id in to_be_removed_ids:
-            try:
-                logger.info('Removing entity with id: {}'.format(entity_id))
-
-                deleted = zmon_client.delete_entity(entity_id)
-
-                if not deleted:
-                    logger.error('Failed to delete entity!')
-                    error_count += 1
-            except Exception:
-                logger.exception('Exception while deleting entity: {}'.format(entity_id))
-                error_count += 1
+            error_count += remove_entity(zmon_client, entity_id)
 
     return to_be_removed_ids, error_count
 
@@ -82,8 +91,9 @@ def add_entity(zmon_client, entity, **kwargs):
 
 @trace()
 def add_new_entities(all_current_entities, existing_entities, zmon_client, json=False):
-    existing_entities_dict = {e['id']: e for e in existing_entities}
-    new_entities = [e for e in all_current_entities if new_or_updated_entity(e, existing_entities_dict)]
+    existing_entities_dict = {e['id']: e for e in existing_entities if e['type'] != 'local'}
+    new_entities = [e for e in all_current_entities
+                    if e['type'] != 'local' and new_or_updated_entity(e, existing_entities_dict)]
 
     error_count = 0
 
