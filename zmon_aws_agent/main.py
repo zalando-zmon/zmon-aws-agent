@@ -193,11 +193,6 @@ def main():
         application_entities = aws.get_apps_from_entities(apps, infrastructure_account, region)
 
         if args.postgresql_user and args.postgresql_pass:
-            postgresql_clusters = zmon_client.get_entities({
-                'infrastructure_account': infrastructure_account,
-                'region': region,
-                'type': 'postgresql_cluster'
-            })
             postgresql_databases = postgresql.get_databases_from_clusters(postgresql_clusters,
                                                                           infrastructure_account,
                                                                           region,
@@ -211,11 +206,10 @@ def main():
 
         current_entities = (
             elbs + scaling_groups + apps + application_entities +
-            rds + postgresql_databases + elasticaches + dynamodbs +
+            rds + postgresql_databases + postgresql_clusters + elasticaches + dynamodbs +
             certificates + sqs)
         current_entities.append(aws_limits)
         current_entities.append(ia_entity)
-        current_entities.append(postgresql_clusters)
 
         for entity in current_entities:
             entity.update(entity_extras)
