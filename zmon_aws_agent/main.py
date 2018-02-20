@@ -233,10 +233,13 @@ def main():
         # 6. Always add Local entity
         if not args.json:
             ia_entity['errors'] = {'delete_count': delete_error_count, 'add_count': add_error_count}
-            try:
-                zmon_client.add_entity(ia_entity)
-            except Exception:
-                logger.exception('Failed to add Local entity: {}'.format(ia_entity))
+
+            local_push_span = opentracing.tracer.start_span(operation_name='update_local_entity')
+            with local_push_span:
+                try:
+                    zmon_client.add_entity(ia_entity)
+                except Exception:
+                    logger.exception('Failed to add Local entity: {}'.format(ia_entity))
 
         types = {e['type']: len([t for t in new_entities if t['type'] == e['type']]) for e in new_entities}
 
