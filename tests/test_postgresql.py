@@ -64,7 +64,7 @@ def test_collect_eip_addresses(monkeypatch, fx_addresses):
                     'PublicIp': '22.33.44.55',
                     'AllocationId': 'eipalloc-22334455'}]
 
-    boto.assert_called_with('ec2')
+    boto.assert_called_with('ec2', region_name=conftest.pg_region)
 
 
 def test_filter_asgs(fx_asgs, fx_asgs_expected):
