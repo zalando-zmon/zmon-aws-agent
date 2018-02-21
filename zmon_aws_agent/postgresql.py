@@ -36,7 +36,7 @@ def list_postgres_databases(*args, **kwargs):
 
         conn = psycopg2.connect(*args, **kwargs)
         cur = conn.cursor()
-        cur.execute()
+        cur.execute(query)
         return [row[0] for row in cur.fetchall()]
     except Exception:
         current_span.set_tag('error', True)
