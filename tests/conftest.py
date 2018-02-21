@@ -757,9 +757,54 @@ def fx_launch_configuration(request):
 
 
 @pytest.fixture()
+def fx_hosted_zones(request):
+    return {'HostedZones': [
+               {'ResourceRecordSetCount': 724,
+                'Name': 'db.zalan.do.',
+                'Config': {
+                    'PrivateZone': 'false',
+                    'Comment': 'Public Hosted Zone'},
+                'CallerReference': 'sevenseconds-db.zalan.do',
+                'Id': '/hostedzone/Z1FLVOF8MF971S'}]}
+
+
+@pytest.fixture()
+def fx_hosted_zones_expected(request):
+    return ['/hostedzone/Z1FLVOF8MF971S']
+
+
+@pytest.fixture()
 def fx_launch_configuration_expected(request):
     return {'malm': 'ZW52aXJvbm1lbnQ6IHtFSVBfQUxMT0NBVElPTjogZWlwYWxsb2MtMjIzMzQ0NTV9Cg==',
             'foo-staging': 'ZW52aXJvbm1lbnQ6IHtFSVBfQUxMTzMzQ0NTV9Cg=='}
+
+
+@pytest.fixture()
+def fx_recordsets(request):
+    return {'ResourceRecordSets': [
+               {'Type': 'CNAME',
+                'Name': 'this.that.db.zalan.do.',
+                'ResourceRecords': [
+                    {'Value': 'ec2-11-22-33-44.eu-central-1.compute.amazonaws.com.'}],
+                'TTL': 600},
+               {'Type': 'CNAME',
+                'Name': 'other.cluster.co.uk.',
+                'ResourceRecords': [
+                    {'Value': 'ec2-22-33-44-55.eu-central-1.compute.amazonaws.com.'}],
+                'TTL': 600},
+               {'Type': 'CNAME',
+                'Name': 'something.interesting.com.',
+                'ResourceRecords': [
+                    {'Value': 'ec2-12-23-34-45.eu-central-1.compute.amazonaws.com.'}],
+                'TTL': 600},
+    ]}
+
+
+@pytest.fixture()
+def fx_ips_dnsnames(request):
+    return {'11.22.33.44': 'this.that.db.zalan.do',
+            '12.23.34.45': 'something.interesting.com',
+            '22.33.44.55': 'other.cluster.co.uk'}
 
 
 PG_CLUSTER = 'malm'

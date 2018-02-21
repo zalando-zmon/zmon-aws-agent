@@ -80,12 +80,12 @@ def test_collect_launch_configurations(monkeypatch, fx_launch_configuration, fx_
     asg.get_paginator.return_value.paginate.return_value.build_full_result.return_value = fx_launch_configuration
     boto = get_boto_client(monkeypatch, asg)
 
-    res = postgresql.collect_launch_configurations(conftest.pg_infrastructure_account)
+    res = postgresql.collect_launch_configurations(conftest.pg_infrastructure_account, conftest.pg_region)
 
     assert res == fx_launch_configuration_expected
 
     asg.get_paginator.assert_called_with('describe_launch_configurations')
-    boto.assert_called_with('autoscaling')
+    boto.assert_called_with('autoscaling', region_name=conftest.pg_region)
 
 
 def test_extract_eipalloc_from_lc(fx_eip_allocation, fx_launch_configuration_expected):
@@ -97,13 +97,40 @@ def test_extract_eipalloc_from_lc(fx_eip_allocation, fx_launch_configuration_exp
     assert res == fx_eip_allocation
 
 
+def test_collect_hostedzones(monkeypatch, fx_hosted_zones, fx_hosted_zones_expected):
+    route53 = MagicMock()
+    route53.list_hosted_zones.return_value = fx_hosted_zones
+    boto = get_boto_client(monkeypatch, route53)
+
+    res = postgresql.collect_hosted_zones(conftest.pg_infrastructure_account, conftest.pg_region)
+
+    assert res == fx_hosted_zones_expected
+
+    boto.assert_called_with('route53', region_name=conftest.pg_region)
+
+
+def test_collect_recordsets(monkeypatch, fx_recordsets, fx_ips_dnsnames, fx_hosted_zones_expected):
+    postgresql.collect_hosted_zones = MagicMock(return_value=fx_hosted_zones_expected)
+    route53 = MagicMock()
+    route53.get_paginator.return_value.paginate.return_value.build_full_result.return_value = fx_recordsets
+    boto = get_boto_client(monkeypatch, route53)
+
+    res = postgresql.collect_recordsets(conftest.pg_infrastructure_account, conftest.pg_region)
+
+    assert res == fx_ips_dnsnames
+
+    route53.get_paginator.assert_called_with('list_resource_record_sets')
+    boto.assert_called_with('route53', region_name=conftest.pg_region)
+
+
 def test_get_postgresql_clusters(
         fx_addresses_expected, fx_asgs_expected, fx_pg_instances_expected,
-        fx_eip_allocation, fx_launch_configuration_expected
+        fx_eip_allocation, fx_launch_configuration_expected, fx_ips_dnsnames
 ):
     postgresql.collect_eip_addresses = MagicMock(return_value=fx_addresses_expected)
     postgresql.collect_launch_configurations = MagicMock(return_value=fx_launch_configuration_expected)
     postgresql.extract_eipalloc_from_lc = MagicMock(return_value=fx_eip_allocation)
+    postgresql.collect_recordsets = MagicMock(return_value=fx_ips_dnsnames)
 
     entities = postgresql.get_postgresql_clusters(conftest.REGION, conftest.pg_infrastructure_account,
                                                   fx_asgs_expected, fx_pg_instances_expected)
@@ -121,7 +148,8 @@ def test_get_postgresql_clusters(
                                        {'instance_id': 'i-02e0',
                                         'private_ip': '192.168.1.3',
                                         'role': 'replica'}],
-                         'infrastructure_account': conftest.pg_infrastructure_account},
+                         'infrastructure_account': conftest.pg_infrastructure_account,
+                         'dnsname': 'something.interesting.com'},
                         {'type': 'postgresql_cluster',
                          'id': 'pg-malm[aws:12345678:eu-central-1]',
                          'region': conftest.REGION,
@@ -135,7 +163,8 @@ def test_get_postgresql_clusters(
                                        {'instance_id': 'i-5555',
                                         'private_ip': '192.168.31.154',
                                         'role': 'replica'}],
-                         'infrastructure_account': conftest.pg_infrastructure_account}]
+                         'infrastructure_account': conftest.pg_infrastructure_account,
+                         'dnsname': 'other.cluster.co.uk'}]
 
 
 # If any of the utility functions fail, we expect an empty list
