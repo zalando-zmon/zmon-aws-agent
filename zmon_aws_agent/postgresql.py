@@ -7,7 +7,7 @@ import traceback
 
 # better move that one to common?
 from zmon_aws_agent.aws import entity_id
-from zmon_aws_agent.common import call_and_retry
+from zmon_aws_agent.common import call_and_retry, clean_opentracing_span
 
 from opentracing_utils import trace, extract_span_from_kwargs
 from opentracing.ext import tags as ot_tags
@@ -27,6 +27,8 @@ def list_postgres_databases(*args, **kwargs):
              WHERE datname NOT IN('postgres', 'template0', 'template1')
         """
         current_span = extract_span_from_kwargs(**kwargs)
+        kwargs = clean_opentracing_span(**kwargs)
+
         current_span.set_tag(ot_tags.PEER_ADDRESS,
                              'psql://{}:{}'.format(kwargs.get('host'), kwargs.get('port')))
         current_span.set_tag(ot_tags.DATABASE_INSTANCE, kwargs.get('dbname'))
@@ -38,7 +40,7 @@ def list_postgres_databases(*args, **kwargs):
         return [row[0] for row in cur.fetchall()]
     except Exception:
         current_span.set_tag('error', True)
-        current_span.log_kv({'exception':  traceback.format_exc()})
+        current_span.log_kv({'exception': traceback.format_exc()})
         logger.exception("Failed to list DBs!")
         return []
 
@@ -90,8 +92,7 @@ def collect_eip_addresses(infrastructure_account, region):
 
 def filter_asgs(infrastructure_account, asgs):
     return [gr for gr in asgs
-            if gr['infrastructure_account'] == infrastructure_account
-            and 'spilo_cluster' in gr.keys()]
+            if gr['infrastructure_account'] == infrastructure_account and 'spilo_cluster' in gr.keys()]
 
 
 def filter_instances(infrastructure_account, instances):

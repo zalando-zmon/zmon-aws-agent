@@ -1,6 +1,8 @@
 import time
 import logging
 
+import opentracing
+
 from botocore.exceptions import ClientError
 
 from zmon_aws_agent import __version__
@@ -36,3 +38,14 @@ def call_and_retry(fn, *args, **kwargs):
                     count += 1
                     continue
             raise
+
+
+def clean_opentracing_span(**kwargs):
+    span_k = None
+    for k, v in kwargs.items():
+        if isinstance(v, opentracing.Span):
+            span_k = k
+            break
+
+    kwargs.pop(span_k, None)
+    return kwargs
