@@ -4,6 +4,7 @@ import boto3
 import yaml
 import base64
 import traceback
+import os
 
 # better move that one to common?
 from zmon_aws_agent.aws import entity_id
@@ -16,6 +17,7 @@ from opentracing.ext import tags as ot_tags
 logger = logging.getLogger(__name__)
 
 POSTGRESQL_DEFAULT_PORT = 5432
+POSTGRESQL_CONNECT_TIMEOUT = os.environ.get('AGENT_POSTGRESQL_CONNECT_TIMEOUT', 2)
 
 
 @trace(pass_span=True, tags={'aws': 'postgres'})
@@ -34,6 +36,7 @@ def list_postgres_databases(*args, **kwargs):
         current_span.set_tag(ot_tags.DATABASE_INSTANCE, kwargs.get('dbname'))
         current_span.set_tag(ot_tags.DATABASE_STATEMENT, query)
 
+        kwargs.update({'connect_timeout': POSTGRESQL_CONNECT_TIMEOUT})
         conn = psycopg2.connect(*args, **kwargs)
         cur = conn.cursor()
         cur.execute(query)
