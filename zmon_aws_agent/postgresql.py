@@ -86,13 +86,13 @@ def get_databases_from_clusters(pgclusters, infrastructure_account, region,
     return entities
 
 
-@trace()
+@trace(tags={'aws': 'ec2'})
 def collect_eip_addresses(infrastructure_account, region):
     ec2 = boto3.client('ec2', region_name=region)
 
     addresses = call_and_retry(ec2.describe_addresses)['Addresses']
 
-    return [a for a in addresses if a['NetworkInterfaceOwnerId'] == infrastructure_account.split(':')[1]]
+    return [a for a in addresses if a.get('NetworkInterfaceOwnerId') == infrastructure_account.split(':')[1]]
 
 
 def filter_asgs(infrastructure_account, asgs):
@@ -114,8 +114,8 @@ def collect_launch_configurations(infrastructure_account, region):
 
     for lc in lcs:
         # LaunchConfigurationName takes the form of spilo-your-cluster-AppServerInstanceProfile-66CCXX77EEPP
-        lc_name = '-'.join(lc['LaunchConfigurationName'].split('-')[1:-2])
-        user_data[lc_name] = lc['UserData']
+        lc_name = '-'.join(lc.get('LaunchConfigurationName', '').split('-')[1:-2])
+        user_data[lc_name] = lc.get('UserData')
 
     return user_data
 
@@ -126,7 +126,7 @@ def extract_eipalloc_from_lc(launch_configuration, cluster_name):
     user_data = base64.decodebytes(lc.encode('utf-8')).decode('utf-8')
     user_data = yaml.safe_load(user_data)
 
-    return user_data['environment'].get('EIP_ALLOCATION', '')
+    return user_data.get('environment', {}).get('EIP_ALLOCATION', '')
 
 
 @trace(tags={'aws': 'route53'})
@@ -150,8 +150,10 @@ def collect_recordsets(infrastructure_account, region):
     ret = {}
     for rs in recordsets:
         if rs['Type'] == 'CNAME':
-            ip = rs['ResourceRecords'][0]['Value'].split('.')[0].replace('ec2-', '').replace('-', '.')
-            ret[ip] = rs['Name'][0:-1]  # cut off the final .
+            rcs = rs.get('ResourceRecords', [])
+            if rcs:
+                ip = rcs[0]['Value'].split('.')[0].replace('ec2-', '').replace('-', '.')
+                ret[ip] = rs.get('Name', '')[0:-1]  # cut off the final .
 
     return ret
 
