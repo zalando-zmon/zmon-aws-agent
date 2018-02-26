@@ -149,7 +149,8 @@ def test_get_postgresql_clusters(
                                         'private_ip': '192.168.1.3',
                                         'role': 'replica'}],
                          'infrastructure_account': conftest.pg_infrastructure_account,
-                         'dnsname': 'something.interesting.com'},
+                         'dnsname': 'something.interesting.com',
+                         'shards': {'postgres': 'something.interesting.com:5432/postgres'}},
                         {'type': 'postgresql_cluster',
                          'id': 'pg-malm[aws:12345678:eu-central-1]',
                          'region': conftest.REGION,
@@ -164,7 +165,8 @@ def test_get_postgresql_clusters(
                                         'private_ip': '192.168.31.154',
                                         'role': 'replica'}],
                          'infrastructure_account': conftest.pg_infrastructure_account,
-                         'dnsname': 'other.cluster.co.uk'}]
+                         'dnsname': 'other.cluster.co.uk',
+                         'shards': {'postgres': 'other.cluster.co.uk:5432/postgres'}}]
 
 
 # If any of the utility functions fail, we expect an empty list

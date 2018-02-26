@@ -53,32 +53,35 @@ def get_databases_from_clusters(pgclusters, infrastructure_account, region,
                                 postgresql_user, postgresql_pass):
     entities = []
 
-    try:
-        for pg in pgclusters:
-            dnsname = pg['dnsname']
-            dbnames = list_postgres_databases(host=dnsname,
-                                              port=POSTGRESQL_DEFAULT_PORT,
-                                              user=postgresql_user,
-                                              password=postgresql_pass,
-                                              dbname='postgres',
-                                              sslmode='require')
-            for db in dbnames:
-                entity = {
-                    'id': entity_id('{}-{}[{}:{}]'.format(db, dnsname, infrastructure_account, region)),
-                    'type': 'postgresql_database',
-                    'created_by': 'agent',
-                    'infrastructure_account': infrastructure_account,
-                    'region': region,
+    for pg in pgclusters:
+        try:
+            dnsname = pg.get('dnsname')
 
-                    'postgresql_cluster': pg['id'],
-                    'database_name': db,
-                    'shards': {
-                        db: '{}:{}/{}'.format(dnsname, POSTGRESQL_DEFAULT_PORT, db)
+            if dnsname:
+                dbnames = list_postgres_databases(host=dnsname,
+                                                  port=POSTGRESQL_DEFAULT_PORT,
+                                                  user=postgresql_user,
+                                                  password=postgresql_pass,
+                                                  dbname='postgres',
+                                                  sslmode='require')
+                for db in dbnames:
+                    entity = {
+                        'id': entity_id('{}-{}[{}:{}]'.format(db, dnsname, infrastructure_account, region)),
+                        'type': 'postgresql_database',
+                        'created_by': 'agent',
+                        'infrastructure_account': infrastructure_account,
+                        'region': region,
+
+                        'postgresql_cluster': pg.get('id'),
+                        'database_name': db,
+                        'shards': {
+                            db: '{}:{}/{}'.format(dnsname, POSTGRESQL_DEFAULT_PORT, db)
+                        }
                     }
-                }
-                entities.append(entity)
-    except Exception:
-        logger.exception("Failed to make Database entities for PostgreSQL clusters!")
+                    entities.append(entity)
+        except Exception:
+            logger.exception('Failed to make Database entities for PostgreSQL clusters on {}!'
+                             .format(pg.get('dnsname', '')))
 
     return entities
 
@@ -90,16 +93,15 @@ def collect_eip_addresses(infrastructure_account, region):
     addresses = call_and_retry(ec2.describe_addresses)['Addresses']
 
     return [a for a in addresses if a['NetworkInterfaceOwnerId'] == infrastructure_account.split(':')[1]]
-# FIXME: depend on region, too?
 
 
 def filter_asgs(infrastructure_account, asgs):
     return [gr for gr in asgs
-            if gr['infrastructure_account'] == infrastructure_account and 'spilo_cluster' in gr.keys()]
+            if gr.get('infrastructure_account') == infrastructure_account and 'spilo_cluster' in gr.keys()]
 
 
 def filter_instances(infrastructure_account, instances):
-    return [i for i in instances if i['infrastructure_account'] == infrastructure_account]
+    return [i for i in instances if i.get('infrastructure_account') == infrastructure_account]
 
 
 @trace(tags={'aws': 'asg'})
@@ -233,6 +235,7 @@ def get_postgresql_clusters(region, infrastructure_account, asgs, insts):
                          'allocation_error': allocation_error,
                          'instances': cluster_instances,
                          'infrastructure_account': infrastructure_account,
-                         'dnsname': dnsname})
+                         'dnsname': dnsname,
+                         'shards': {'postgres': '{}:5432/postgres'.format(dnsname)}})
 
     return entities
