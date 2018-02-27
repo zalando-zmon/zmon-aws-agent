@@ -181,6 +181,7 @@ def get_postgresql_clusters(region, infrastructure_account, asgs, insts):
         eip = []
         public_ip_instance_id = ''
         allocation_error = ''
+        public_ip = ''
 
         for i in cluster['instances']:
             instance_id = i['aws_id']
