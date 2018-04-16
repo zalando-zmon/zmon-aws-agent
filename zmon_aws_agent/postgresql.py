@@ -192,7 +192,7 @@ def get_postgresql_clusters(region, infrastructure_account, asgs, insts):
                 logger.exception('Failed to find a Spilo EC2 instance: %s', instance_id)
 
             private_ip = i_data['ip']
-            role = i_data['role']
+            role = i_data.get("role", "")
 
             cluster_instances.append({'instance_id': instance_id,
                                       'private_ip': private_ip,
