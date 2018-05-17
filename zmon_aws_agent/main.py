@@ -48,7 +48,7 @@ def remove_entity(zmon_client, entity_id, **kwargs):
             return 1
     except Exception:
         current_span.set_tag('error', True)
-        current_span.log_kv({'exception':  traceback.format_exc()})
+        current_span.log_kv({'exception': traceback.format_exc()})
         logger.exception('Exception while deleting entity: {}'.format(entity_id))
         return 1
     return 0
@@ -89,7 +89,7 @@ def add_entity(zmon_client, entity, **kwargs):
         return 0
     except Exception:
         current_span.set_tag('error', True)
-        current_span.log_kv({'exception':  traceback.format_exc()})
+        current_span.log_kv({'exception': traceback.format_exc()})
         logger.exception('Failed to add entity: {}'.format(entity))
         return 1
 
@@ -118,7 +118,7 @@ def update_local_entity(zmon_client, entity, **kwargs):
         zmon_client.add_entity(entity)
     except Exception:
         current_span.set_tag('error', True)
-        current_span.log_kv({'exception':  traceback.format_exc()})
+        current_span.log_kv({'exception': traceback.format_exc()})
         logger.exception('Failed to add Local entity: {}'.format(entity))
 
 
@@ -160,7 +160,7 @@ def main():
                                         timeout=2)
             except Exception:
                 root_span.set_tag('error', True)
-                root_span.log_kv({'exception':  traceback.format_exc()})
+                root_span.log_kv({'exception': traceback.format_exc()})
                 logger.exception('Region was not specified as a parameter and' +
                                  'can not be fetched from instance meta-data!')
                 raise

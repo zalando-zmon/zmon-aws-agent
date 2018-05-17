@@ -168,7 +168,7 @@ def get_instance_events(aws_client, instance, **kwargs):
     except Exception:
         current_span = extract_span_from_kwargs(**kwargs)
         current_span.set_tag('error', True)
-        current_span.log_kv({'exception':  traceback.format_exc()})
+        current_span.log_kv({'exception': traceback.format_exc()})
         logger.exception('Failed to retrieve instance events for instance: {}'.format(instance['InstanceId']))
 
     return []
@@ -322,7 +322,7 @@ def get_running_apps(region, existing_entities=None, **kwargs):
             except Exception:
                 current_span = extract_span_from_kwargs(**kwargs)
                 current_span.set_tag('error', True)
-                current_span.log_kv({'exception':  traceback.format_exc()})
+                current_span.log_kv({'exception': traceback.format_exc()})
                 logger.exception('Failed to retrieve image descriptions')
 
     return result
@@ -536,7 +536,7 @@ def get_auto_scaling_groups(region, acc, **kwargs):
             except Exception:
                 current_span = extract_span_from_kwargs(**kwargs)
                 current_span.set_tag('error', True)
-                current_span.log_kv({'exception':  traceback.format_exc()})
+                current_span.log_kv({'exception': traceback.format_exc()})
                 logger.exception('Failed in retrieving instances for ASG: {}'.format(sg['name']))
 
         groups.append(sg)
@@ -677,7 +677,7 @@ def get_rds_instances(region, acc, existing_entities, **kwargs):
     except Exception:
         current_span = extract_span_from_kwargs(**kwargs)
         current_span.set_tag('error', True)
-        current_span.log_kv({'exception':  traceback.format_exc()})
+        current_span.log_kv({'exception': traceback.format_exc()})
         logger.exception('Failed to get RDS instance')
 
     return entities
@@ -731,7 +731,7 @@ def get_certificates(region, acc, **kwargs):
     except Exception:
         current_span = extract_span_from_kwargs(**kwargs)
         current_span.set_tag('error', True)
-        current_span.log_kv({'exception':  traceback.format_exc()})
+        current_span.log_kv({'exception': traceback.format_exc()})
         logger.exception('Failed while retrieving IAM/ACM certificates, IAM role has no access?')
 
     return entities
@@ -746,7 +746,7 @@ def get_account_alias(region, **kwargs):
     except Exception:
         current_span = extract_span_from_kwargs(**kwargs)
         current_span.set_tag('error', True)
-        current_span.log_kv({'exception':  traceback.format_exc()})
+        current_span.log_kv({'exception': traceback.format_exc()})
         return None
 
 
@@ -759,7 +759,7 @@ def get_account_id(region, **kwargs):
     except Exception:
         current_span = extract_span_from_kwargs(**kwargs)
         current_span.set_tag('error', True)
-        current_span.log_kv({'exception':  traceback.format_exc()})
+        current_span.log_kv({'exception': traceback.format_exc()})
         return None
 
 
@@ -793,7 +793,7 @@ def get_limits(region, acc, apps, elbs, entities, **kwargs):
         'ec2-used-instances': len([a for a in apps if a['type'] == 'instance' and not a.get('spot_instance', False)]),
         'ec2-used-spot-instances': len([a for a in apps if a['type'] == 'instance' and a.get('spot_instance', False)]),
         'elb-used-count': len(elbs),
-        })
+    })
 
     ec2 = boto3.client('ec2', region_name=region)
     rds = boto3.client('rds', region_name=region)
@@ -807,7 +807,7 @@ def get_limits(region, acc, apps, elbs, entities, **kwargs):
                 limits['ec2-max-instances'] = int(attr['AttributeValues'][0]['AttributeValue'])
     except Exception:
         current_span.set_tag('error', True)
-        current_span.log_kv({'exception':  traceback.format_exc()})
+        current_span.log_kv({'exception': traceback.format_exc()})
         logger.exception('Failed to query EC2 account attributes!')
 
     try:
@@ -822,7 +822,7 @@ def get_limits(region, acc, apps, elbs, entities, **kwargs):
         limits['rds-used-allocated'] = q['AllocatedStorage']['Used']
     except Exception:
         current_span.set_tag('error', True)
-        current_span.log_kv({'exception':  traceback.format_exc()})
+        current_span.log_kv({'exception': traceback.format_exc()})
         logger.exception('Failed to query RDS account attributes!')
 
     try:
@@ -833,7 +833,7 @@ def get_limits(region, acc, apps, elbs, entities, **kwargs):
         limits['asg-used-launch-configurations'] = asg_limits['NumberOfLaunchConfigurations']
     except Exception:
         current_span.set_tag('error', True)
-        current_span.log_kv({'exception':  traceback.format_exc()})
+        current_span.log_kv({'exception': traceback.format_exc()})
         logger.exception('Failed to query ASG limits!')
 
     try:
@@ -849,7 +849,7 @@ def get_limits(region, acc, apps, elbs, entities, **kwargs):
 
     except Exception:
         current_span.set_tag('error', True)
-        current_span.log_kv({'exception':  traceback.format_exc()})
+        current_span.log_kv({'exception': traceback.format_exc()})
         logger.exception('Failed to query IAM account summary!')
 
     entity = {
@@ -924,14 +924,14 @@ def get_sqs_queues(region, acc, all_entities=None, **kwargs):
                     sqs_queues.append(sqs_entity)
             except Exception:
                 current_span.set_tag('error', True)
-                current_span.log_kv({'exception':  traceback.format_exc()})
+                current_span.log_kv({'exception': traceback.format_exc()})
                 logger.exception('Failed to obtain details about queue with url="%s"', queue_url)
     except Exception as e:
         if isinstance(e, ClientError) and e.response['Error']['Code'] == 'AccessDenied':
             logger.warning('Access to AWS SQS denied. Skip queue discovery.')
         else:
             current_span.set_tag('error', True)
-            current_span.log_kv({'exception':  traceback.format_exc()})
+            current_span.log_kv({'exception': traceback.format_exc()})
             logger.exception('Failed to list SQS queues.')
 
     return sqs_queues
