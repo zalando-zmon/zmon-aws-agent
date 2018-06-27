@@ -17,7 +17,6 @@ from botocore.exceptions import ClientError
 from zmon_aws_agent.common import call_and_retry
 from opentracing_utils import trace, extract_span_from_kwargs
 
-
 BASE_LIST = string.digits + string.ascii_letters
 BASE_DICT = dict((c, i) for i, c in enumerate(BASE_LIST))
 
@@ -507,6 +506,7 @@ def get_auto_scaling_groups(region, acc, **kwargs):
             'desired_capacity': g['DesiredCapacity'],
             'max_size': g['MaxSize'],
             'min_size': g['MinSize'],
+            'created_time': g['CreatedTime'].strftime('%Y-%m-%d %H:%M:%S.%f'),
         }
 
         assign_properties_from_tags(sg, g.get('Tags', []))

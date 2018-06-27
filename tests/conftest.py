@@ -2,6 +2,7 @@ import json
 import base64
 
 from datetime import datetime
+from dateutil.tz import tzutc
 
 import pytest
 
@@ -78,7 +79,8 @@ def get_autoscaling():
             {'InstanceId': 'ins-2', 'LifecycleState': 'InService'},
             {'InstanceId': 'ins-3', 'LifecycleState': 'InService'},
             {'InstanceId': 'ins-4', 'LifecycleState': 'unknown'},
-        ]
+        ],
+        'CreatedTime': datetime(2018, 6, 6, 9, 59, 38, 127000, tzinfo=tzutc())
     }
 
     reservations = {
@@ -111,6 +113,7 @@ def get_autoscaling():
             'max_size': 10,
             'min_size': 3,
             'instances': [{'aws_id': 'ins-1', 'ip': '192.168.20.16'}],
+            'created_time': '2018-06-06 09:59:38.127000'
         }
     ]
 
