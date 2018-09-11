@@ -361,7 +361,11 @@ def get_running_elbs_classic(region, acc):
     for e in elbs:
         name = e['LoadBalancerName']
 
-        protocol = e['ListenerDescriptions'][0]['Listener']['Protocol']
+        lsnr = e.get('ListenerDescriptions', [])  # work around empty listener descriptions
+        if not lsnr:
+            lsnr_url = e['DNSName']
+        else:
+            lsnr_url = '{}://{}'.format(lsnr[0]['Listener']['Protocol'].lower(), e['DNSName'])
 
         lb = {
             'id': entity_id('elb-{}[{}:{}]'.format(name, acc, region)),
@@ -374,7 +378,7 @@ def get_running_elbs_classic(region, acc):
             'host': e['DNSName'],
             'name': name,
             'scheme': e['Scheme'],
-            'url': '{}://{}'.format(protocol.lower(), e['DNSName']),
+            'url': lsnr_url,
             'members': len(e['Instances']),
         }
 
