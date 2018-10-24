@@ -23,8 +23,8 @@ BASE_DICT = dict((c, i) for i, c in enumerate(BASE_LIST))
 DNS_ZONE_CACHE = {}
 DNS_RR_CACHE_ZONE = {}
 
-INVALID_ENTITY_FIRST_CHAR = re.compile('^[^a-z]+')
-INVALID_ENTITY_CHARS_PATTERN = re.compile('[^a-zA-Z0-9@._:\[\]-]')
+INVALID_ENTITY_FIRST_CHAR = re.compile(r'^[^a-z]+')
+INVALID_ENTITY_CHARS_PATTERN = re.compile(r'[^a-zA-Z0-9@._:\[\]-]')
 
 # hack, to identify kubernetes ELBs
 KUBE_SERVICE_TAG = 'kubernetes.io/service_name'

@@ -6,6 +6,9 @@ import logging
 import json
 
 from opentracing_utils import init_opentracing_tracer, trace_requests, trace, extract_span_from_kwargs
+
+from zmon_aws_agent import elastigroup
+
 trace_requests()  # noqa
 import opentracing
 
@@ -198,10 +201,14 @@ def main():
 
         elbs = []
         scaling_groups = []
+        elastigroups = []
+        certificates = []
         rds = []
         elasticaches = []
         dynamodbs = []
         sqs = []
+        postgresql_clusters = []
+        aws_limits = []
 
         new_entities = []
         to_be_removed = []
@@ -209,6 +216,7 @@ def main():
         if len(apps) > 0:
             elbs = aws.get_running_elbs(region, infrastructure_account)
             scaling_groups = aws.get_auto_scaling_groups(region, infrastructure_account)
+            elastigroups = elastigroup.get_elastigroup_entities(region, infrastructure_account)
             rds = aws.get_rds_instances(region, infrastructure_account, entities)
             elasticaches = aws.get_elasticache_nodes(region, infrastructure_account)
             dynamodbs = aws.get_dynamodb_tables(region, infrastructure_account)
@@ -249,7 +257,7 @@ def main():
             entities = [e for e in entities if e.get('type') != 'postgresql_database']
 
         current_entities = (
-            elbs + scaling_groups + apps + application_entities +
+            elbs + scaling_groups + elastigroups + apps + application_entities +
             rds + postgresql_databases + postgresql_clusters + elasticaches + dynamodbs +
             certificates + sqs)
         current_entities.append(aws_limits)
@@ -292,6 +300,7 @@ def main():
             d = {
                 'applications': application_entities,
                 'apps': apps,
+                'elastigroups': elastigroups,
                 'dynamodb': dynamodbs,
                 'elbs': elbs,
                 'elc': elasticaches,

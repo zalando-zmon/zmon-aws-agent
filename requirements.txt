@@ -6,3 +6,5 @@ stups-tokens>=1.0.16
 zmon-cli>=1.1.55
 opentracing<2.0,>=1.2.2
 opentracing_utils
+
+spotinst-sdk
