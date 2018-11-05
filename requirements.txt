@@ -7,4 +7,4 @@ zmon-cli>=1.1.55
 opentracing<2.0,>=1.2.2
 opentracing_utils
 
-spotinst-sdk
+spotinst-sdk==1.0.40

@@ -718,8 +718,9 @@ def get_certificates(region, acc, **kwargs):
         for cert in acm_certs:
             c = acm_client.describe_certificate(CertificateArn=cert['CertificateArn'])['Certificate']
 
+            cert_id = cert['CertificateArn'].split('/')[-1]
             e = {
-                'id': entity_id('cert-acm-{}[{}:{}]'.format(c['DomainName'], acc, region)),
+                'id': entity_id('cert-acm-{}-{}[{}:{}]'.format(cert_id, c['DomainName'], acc, region)),
                 'type': 'certificate',
                 'infrastructure_account': acc,
                 'region': region,

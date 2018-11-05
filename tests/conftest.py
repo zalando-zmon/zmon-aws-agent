@@ -410,11 +410,11 @@ def get_certificates():
     resp_acm = {
         'CertificateSummaryList': [
             {
-                'CertificateArn': 'arn-acm-zmon-cert-2',
+                'CertificateArn': 'arn-acm-zmon-cert-2/2-123',
                 'DomainName': 'zmon-cert-2',
             },
             {
-                'CertificateArn': 'arn-acm-zmon-cert-3',
+                'CertificateArn': 'arn-acm-zmon-cert-3/3-123',
                 'DomainName': 'zmon-cert-3',
             },
         ]
@@ -424,7 +424,7 @@ def get_certificates():
         {
             'Certificate': {
                 'DomainName': 'zmon-cert-2',
-                'CertificateArn': 'arn-acm-zmon-cert-2',
+                'CertificateArn': 'arn-acm-zmon-cert-2/2-123',
                 'Status': 'ISSUED',
                 'NotAfter': datetime(2023, 4, 26, 0, 0),
             }
@@ -432,7 +432,7 @@ def get_certificates():
         {
             'Certificate': {
                 'DomainName': 'zmon-cert-3',
-                'CertificateArn': 'arn-acm-zmon-cert-3',
+                'CertificateArn': 'arn-acm-zmon-cert-3/3-123',
                 'Status': 'VALIDATION_TIMED_OUT',
             }
         }
@@ -446,16 +446,16 @@ def get_certificates():
             'created_by': 'agent', 'name': 'zmon-cert-1',
         },
         {
-            'type': 'certificate', 'status': 'ISSUED', 'region': REGION, 'arn': 'arn-acm-zmon-cert-2',
-            'certificate_type': 'acm', 'id': 'cert-acm-zmon-cert-2[{}:{}]'.format(ACCOUNT, REGION),
+            'type': 'certificate', 'status': 'ISSUED', 'region': REGION, 'arn': 'arn-acm-zmon-cert-2/2-123',
+            'certificate_type': 'acm', 'id': 'cert-acm-2-123-zmon-cert-2[{}:{}]'.format(ACCOUNT, REGION),
             'infrastructure_account': ACCOUNT, 'expiration': '2023-04-26T00:00:00',
             'created_by': 'agent', 'name': 'zmon-cert-2',
         },
         {
-            'type': 'certificate', 'status': 'VALIDATION_TIMED_OUT', 'region': REGION, 'arn': 'arn-acm-zmon-cert-3',
-            'certificate_type': 'acm', 'id': 'cert-acm-zmon-cert-3[{}:{}]'.format(ACCOUNT, REGION),
-            'infrastructure_account': ACCOUNT, 'expiration': '',
-            'created_by': 'agent', 'name': 'zmon-cert-3',
+            'type': 'certificate', 'status': 'VALIDATION_TIMED_OUT', 'region': REGION,
+            'arn': 'arn-acm-zmon-cert-3/3-123', 'certificate_type': 'acm',
+            'id': 'cert-acm-3-123-zmon-cert-3[{}:{}]'.format(ACCOUNT, REGION), 'infrastructure_account': ACCOUNT,
+            'expiration': '', 'created_by': 'agent', 'name': 'zmon-cert-3',
         }
     ]
 
@@ -752,23 +752,30 @@ def fx_eip_allocation(request):
 
 @pytest.fixture()
 def fx_launch_configuration(request):
-    return {'LaunchConfigurations': [
-               {'LaunchConfigurationName': 'spilo-malm-AppServerInstanceProfile-66CCXX77EEPP',
-                'UserData': 'ZW52aXJvbm1lbnQ6IHtFSVBfQUxMT0NBVElPTjogZWlwYWxsb2MtMjIzMzQ0NTV9Cg=='},
-               {'LaunchConfigurationName': 'spilo-foo-staging-AppServerInstanceProfile-66CCXX77YYZZ',
-                'UserData': 'ZW52aXJvbm1lbnQ6IHtFSVBfQUxMTzMzQ0NTV9Cg=='}]}
+    return {
+        'LaunchConfigurations': [
+            {
+                'LaunchConfigurationName': 'spilo-malm-AppServerInstanceProfile-66CCXX77EEPP',
+                'UserData': 'ZW52aXJvbm1lbnQ6IHtFSVBfQUxMT0NBVElPTjogZWlwYWxsb2MtMjIzMzQ0NTV9Cg=='
+            },
+            {
+                'LaunchConfigurationName': 'spilo-foo-staging-AppServerInstanceProfile-66CCXX77YYZZ',
+                'UserData': 'ZW52aXJvbm1lbnQ6IHtFSVBfQUxMTzMzQ0NTV9Cg=='
+            }
+        ]
+    }
 
 
 @pytest.fixture()
 def fx_hosted_zones(request):
     return {'HostedZones': [
-               {'ResourceRecordSetCount': 724,
-                'Name': 'db.zalan.do.',
-                'Config': {
-                    'PrivateZone': 'false',
-                    'Comment': 'Public Hosted Zone'},
-                'CallerReference': 'sevenseconds-db.zalan.do',
-                'Id': '/hostedzone/Z1FLVOF8MF971S'}]}
+        {'ResourceRecordSetCount': 724,
+         'Name': 'db.zalan.do.',
+         'Config': {
+             'PrivateZone': 'false',
+             'Comment': 'Public Hosted Zone'},
+         'CallerReference': 'sevenseconds-db.zalan.do',
+         'Id': '/hostedzone/Z1FLVOF8MF971S'}]}
 
 
 @pytest.fixture()
@@ -785,21 +792,21 @@ def fx_launch_configuration_expected(request):
 @pytest.fixture()
 def fx_recordsets(request):
     return {'ResourceRecordSets': [
-               {'Type': 'CNAME',
-                'Name': 'this.that.db.zalan.do.',
-                'ResourceRecords': [
-                    {'Value': 'ec2-11-22-33-44.eu-central-1.compute.amazonaws.com.'}],
-                'TTL': 600},
-               {'Type': 'CNAME',
-                'Name': 'other.cluster.co.uk.',
-                'ResourceRecords': [
-                    {'Value': 'ec2-22-33-44-55.eu-central-1.compute.amazonaws.com.'}],
-                'TTL': 600},
-               {'Type': 'CNAME',
-                'Name': 'something.interesting.com.',
-                'ResourceRecords': [
-                    {'Value': 'ec2-12-23-34-45.eu-central-1.compute.amazonaws.com.'}],
-                'TTL': 600},
+        {'Type': 'CNAME',
+         'Name': 'this.that.db.zalan.do.',
+         'ResourceRecords': [
+             {'Value': 'ec2-11-22-33-44.eu-central-1.compute.amazonaws.com.'}],
+         'TTL': 600},
+        {'Type': 'CNAME',
+         'Name': 'other.cluster.co.uk.',
+         'ResourceRecords': [
+             {'Value': 'ec2-22-33-44-55.eu-central-1.compute.amazonaws.com.'}],
+         'TTL': 600},
+        {'Type': 'CNAME',
+         'Name': 'something.interesting.com.',
+         'ResourceRecords': [
+             {'Value': 'ec2-12-23-34-45.eu-central-1.compute.amazonaws.com.'}],
+         'TTL': 600},
     ]}
 
 
