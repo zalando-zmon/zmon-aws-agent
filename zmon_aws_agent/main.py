@@ -266,6 +266,7 @@ def main():
 
         for entity in current_entities:
             entity.update(entity_extras)
+            entity.update({'alias': owner})
 
         # 4. Removing misssing entities
         existing_ids = get_existing_ids(entities)
