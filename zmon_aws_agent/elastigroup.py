@@ -75,6 +75,8 @@ def get_elastigroup_entities(region, acc, **kwargs):
                     'desired_capacity': capacity.get('target', 1),
                     'max_size': capacity.get('maximum', 1),
                     'min_size': capacity.get('minimum', 1),
+                    'cloud_account_id': eg_data.account_id,
+                    'elastigroup_id': eg_data.group_id,
                     'risk': strategy.get('risk', 100),
                     'orientation': strategy.get('availability_vs_cost', 'balanced'),
                     'instance_types': compute.get('instance_types', None),
@@ -91,8 +93,7 @@ def get_elastigroup_entities(region, acc, **kwargs):
                 eg['instances'] = []
                 instances = get_elastigroup_instances(eg_data)
                 for instance in instances:
-                    eg['instances'].append({'aws_id': instance.get('instance_id', 'missing-instance-id'),
-                                            'ip': instance.get('private_ip', 'missing-private-ip')})
+                    eg['instances'].append(extract_instance_details(instance))
 
                 groups.append(eg)
     except Exception as e:
@@ -107,6 +108,16 @@ def get_elastigroup_entities(region, acc, **kwargs):
             logger.exception('Failed to discover Elastigroups')
 
     return groups
+
+
+def extract_instance_details(instance):
+    return {
+        'aws_id': instance.get('instance_id', 'missing-instance-id'),
+        'ip': instance.get('private_ip', 'missing-private-ip'),
+        'type': instance.get('instance_type', 'missing-instance-type'),
+        'spot': instance.get('spot_instance_request_id', None) is not None,
+        'availability_zone': instance.get('availability_zone', 'unknown-az')
+    }
 
 
 @trace(pass_span=True)

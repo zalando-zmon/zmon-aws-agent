@@ -4,9 +4,10 @@ import boto3
 import pytest
 from botocore.exceptions import ClientError
 from spotinst_sdk import SpotinstClientException
+import requests_mock
 
 import zmon_aws_agent
-from zmon_aws_agent.elastigroup import Elastigroup
+from zmon_aws_agent.elastigroup import Elastigroup, extract_instance_details
 
 
 def test_get_elastigroup_entities(monkeypatch):
@@ -167,3 +168,29 @@ def test_get_elastigroup_instances(data, err, result, expected):
         elastigroup_status_mock.side_effect = err
         got = zmon_aws_agent.elastigroup.get_elastigroup_instances(data)
         assert got == expected
+
+
+def test_extract_instance_details():
+    # Example from https://api.spotinst.com/spotinst-api/elastigroup/amazon-web-services/status/
+    resp = '{"request":{"id":"890a90c2-5264-482b-a72b-e021557227e4","url":"/aws/ec2/group/sig-12345678/status",' \
+           '"method":"GET","timestamp":"2018-06-25T11:51:42.629Z"},"response":{"status":{"code":200,"message":"OK"},' \
+           '"kind":"spotinst:aws:ec2:group","items":[{"spotInstanceRequestId":"sir-3thgagpn",' \
+           '"instanceId":"i-0cc289f12538e4758","instanceType":"t2.micro","product":"Linux/UNIX",' \
+           '"groupId":"sig-12345678","availabilityZone":"us-west-2a","privateIp":"172.31.28.210",' \
+           '"createdAt":"2018-06-25T11:49:00.000Z","publicIp":"10.10.10.10","status":"fulfilled"},' \
+           '{"spotInstanceRequestId":null,"instanceId":"i-05ebb28abebdc718b","instanceType":"t2.medium",' \
+           '"product":"Linux/UNIX","groupId":"sig-05417358","availabilityZone":"us-west-2a",' \
+           '"privateIp":"172.31.17.189","createdAt":"2018-06-25T11:49:02.000Z","publicIp":"10.10.10.10",' \
+           '"status":"running"}],"count":2}}'
+    with requests_mock.Mocker() as m:
+        m.get("https://api.spotinst.io/aws/ec2/group/42/status", text=resp)
+        got = zmon_aws_agent.elastigroup.get_elastigroup_instances(Elastigroup("42", "name", "12345", "fake"))
+        assert len(got) == 2
+        inst1 = extract_instance_details(got[0])
+        assert inst1['type'] == 't2.micro'
+        assert inst1['spot']
+        assert inst1['availability_zone'] == 'us-west-2a'
+        inst2 = extract_instance_details(got[1])
+        assert inst2['type'] == 't2.medium'
+        assert inst2['spot'] is False
+        assert inst2['availability_zone'] == 'us-west-2a'
