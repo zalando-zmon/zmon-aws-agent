@@ -261,6 +261,10 @@ def get_apps():
             'application_id': 'app-1', 'source': 'registry/stups/zmon-aws-agent:cd81',
             'ports': [2222], 'runtime': 'docker',
             'application_version': '1.0',
+            'logging': {
+                'fluentd_enabled': True,
+                'log_destination': 's3'
+            },
         },
         {
             'no-appliacation-id': 'dummy'
@@ -274,7 +278,7 @@ def get_apps():
             'id': 'app-1-stack-1-1.0-{}[{}:{}]'.format(get_hash('192.168.20.16'), ACCOUNT, REGION),
             'type': 'instance', 'created_by': 'agent', 'region': REGION, 'infrastructure_account': 'aws:1234',
             'ip': '192.168.20.16', 'host': '192.168.20.16', 'public_ip': '194.194.20.16',
-            'instance_type': 't2.medium', 'aws_id': 'ins-1',
+            'instance_type': 't2.medium', 'aws_id': 'ins-1', 'fluentd_enabled': 'true',
             'state_reason': 'state', 'stack': 'stack-1', 'stack_version': 'stack-1-1.0',
             'resource_id': 'cd-app', 'application_id': 'app-1', 'application_version': '1.0',
             'source': 'registry/stups/zmon-aws-agent:cd81', 'source_base': 'registry/stups/zmon-aws-agent',
@@ -369,7 +373,7 @@ def get_apps_existing():
             'id': 'app-1-stack-1-1.0-{}[{}:{}]'.format(get_hash('192.168.20.16'), ACCOUNT, REGION),
             'type': 'instance', 'created_by': 'agent', 'region': REGION, 'infrastructure_account': 'aws:1234',
             'ip': '192.168.20.16', 'host': '192.168.20.16', 'public_ip': '194.194.20.16',
-            'instance_type': 't2.medium', 'aws_id': 'ins-1',
+            'instance_type': 't2.medium', 'aws_id': 'ins-1', 'fluentd_enabled': 'false',
             'state_reason': 'state', 'stack': 'stack-1', 'stack_version': 'stack-1-1.0',
             'resource_id': 'cd-app', 'application_id': 'app-1', 'application_version': '1.0',
             'source': 'registry/stups/zmon-aws-agent:cd81', 'source_base': 'registry/stups/zmon-aws-agent',

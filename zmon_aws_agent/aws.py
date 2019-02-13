@@ -282,6 +282,14 @@ def get_running_apps(region, existing_entities=None, **kwargs):
                     assign_properties_from_tags(ins, i.get('Tags', []))
 
                     add_traffic_tags_to_entity(ins)
+
+                    zlogging = user_data.get('logging', {})
+
+                    ins['fluentd_enabled'] = 'false'
+
+                    if zlogging.get('fluentd_enabled') is True:
+                        ins['fluentd_enabled'] = 'true'
+
                 else:
                     ins['id'] = entity_id('{}-{}[aws:{}:{}]'.format(tags.get('Name') or i['InstanceId'],
                                                                     get_hash(i['PrivateIpAddress'] + ''),
