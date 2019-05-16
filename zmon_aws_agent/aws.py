@@ -719,7 +719,7 @@ def get_certificates(region, acc, **kwargs):
                 'arn': cert['Arn'],
                 'status': 'ISSUED',
                 'expiration': cert['Expiration'].isoformat(),
-                'in_use': True  # The results do not contain reference to existing use of certs
+                'in_use': "true"  # The results do not contain reference to existing use of certs
             }
 
             entities.append(e)
@@ -739,7 +739,7 @@ def get_certificates(region, acc, **kwargs):
                 'arn': c['CertificateArn'],
                 'status': c['Status'],
                 'expiration': c['NotAfter'].isoformat() if 'NotAfter' in c else '',
-                'in_use': len(c['InUseBy']) > 0,
+                'in_use': "true" if len(c['InUseBy']) > 0 else "false",
             }
 
             entities.append(e)

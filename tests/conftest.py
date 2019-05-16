@@ -462,25 +462,25 @@ def get_certificates():
             'type': 'certificate', 'status': 'ISSUED', 'region': REGION, 'arn': 'arn-iam-zmon-cert-1',
             'certificate_type': 'iam', 'id': 'cert-iam-zmon-cert-1[{}:{}]'.format(ACCOUNT, REGION),
             'infrastructure_account': ACCOUNT, 'expiration': '2023-04-26T00:00:00',
-            'created_by': 'agent', 'name': 'zmon-cert-1', 'in_use': True,
+            'created_by': 'agent', 'name': 'zmon-cert-1', 'in_use': 'true',
         },
         {
             'type': 'certificate', 'status': 'ISSUED', 'region': REGION, 'arn': 'arn-acm-zmon-cert-2/2-123',
             'certificate_type': 'acm', 'id': 'cert-acm-2-123-zmon-cert-2[{}:{}]'.format(ACCOUNT, REGION),
             'infrastructure_account': ACCOUNT, 'expiration': '2023-04-26T00:00:00',
-            'created_by': 'agent', 'name': 'zmon-cert-2', 'in_use': True,
+            'created_by': 'agent', 'name': 'zmon-cert-2', 'in_use': 'true',
         },
         {
             'type': 'certificate', 'status': 'VALIDATION_TIMED_OUT', 'region': REGION,
             'arn': 'arn-acm-zmon-cert-3/3-123', 'certificate_type': 'acm',
             'id': 'cert-acm-3-123-zmon-cert-3[{}:{}]'.format(ACCOUNT, REGION), 'infrastructure_account': ACCOUNT,
-            'expiration': '', 'created_by': 'agent', 'name': 'zmon-cert-3', 'in_use': True,
+            'expiration': '', 'created_by': 'agent', 'name': 'zmon-cert-3', 'in_use': 'true',
         },
         {
             'type': 'certificate', 'status': 'ISSUED', 'region': REGION, 'arn': 'arn-acm-zmon-cert-4/4-123',
             'certificate_type': 'acm', 'id': 'cert-acm-4-123-zmon-cert-4[{}:{}]'.format(ACCOUNT, REGION),
             'infrastructure_account': ACCOUNT, 'expiration': '2023-04-26T00:00:00',
-            'created_by': 'agent', 'name': 'zmon-cert-4', 'in_use': False,
+            'created_by': 'agent', 'name': 'zmon-cert-4', 'in_use': 'false',
         }
     ]
 
