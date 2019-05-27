@@ -131,6 +131,7 @@ def main():
     argp.add_argument('-r', '--region', dest='region', default=None)
     argp.add_argument('-j', '--json', dest='json', action='store_true')
     argp.add_argument('-t', '--tracer', dest='tracer', default=os.environ.get('OPENTRACING_TRACER', 'noop'))
+    argp.add_argument('-T', '--timeout', dest='timeout', default=15, type=int)  # default in zmon is 10 sec
     argp.add_argument('--no-oauth2', dest='disable_oauth2', action='store_true', default=False)
     argp.add_argument('--postgresql-user', dest='postgresql_user', default=os.environ.get('AGENT_POSTGRESQL_USER'))
     argp.add_argument('--postgresql-pass', dest='postgresql_pass', default=os.environ.get('AGENT_POSTGRESQL_PASS'))
@@ -191,7 +192,7 @@ def main():
         # 2. ZMON entities
         if not args.disable_oauth2:
             token = os.getenv('ZMON_TOKEN', None) or tokens.get('uid')
-        zmon_client = Zmon(args.entityservice, token=token, user_agent=get_user_agent())
+        zmon_client = Zmon(args.entityservice, token=token, user_agent=get_user_agent(), timeout=args.timeout)
 
         query = {'infrastructure_account': infrastructure_account, 'region': region, 'created_by': 'agent'}
         entities = zmon_client.get_entities(query)
