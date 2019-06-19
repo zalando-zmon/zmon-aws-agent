@@ -14,7 +14,7 @@ fi
 while :
 do
     echo "Executing AWS agent..."
-    zmon-aws-agent -e $ENTITY_SERVICE_URL
+    timeout $AGENT_SLEEP_SECONDS zmon-aws-agent -e $ENTITY_SERVICE_URL
     echo "sleeping..." $AGENT_SLEEP_SECONDS "seconds"
     sleep $AGENT_SLEEP_SECONDS
 done
