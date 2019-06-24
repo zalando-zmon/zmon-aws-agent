@@ -11,10 +11,11 @@ if [ -z "$AGENT_SLEEP_SECONDS" ] ; then
   export AGENT_SLEEP_SECONDS=60
 fi
 
+TIMEOUT=540 # 9 minutes
 while :
 do
     echo "Executing AWS agent..."
-    timeout $AGENT_SLEEP_SECONDS zmon-aws-agent -e $ENTITY_SERVICE_URL
+    timeout $TIMEOUT zmon-aws-agent -e $ENTITY_SERVICE_URL
     echo "sleeping..." $AGENT_SLEEP_SECONDS "seconds"
     sleep $AGENT_SLEEP_SECONDS
 done
