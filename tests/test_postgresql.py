@@ -137,6 +137,7 @@ def test_get_postgresql_clusters(
 
     assert entities == [{'type': 'postgresql_cluster',
                          'id': 'pg-bla[aws:12345678:eu-central-1]',
+                         'created_by': 'agent',
                          'region': conftest.REGION,
                          'spilo_cluster': 'bla',
                          'elastic_ip': '12.23.34.45',
@@ -153,6 +154,7 @@ def test_get_postgresql_clusters(
                          'shards': {'postgres': 'something.interesting.com:5432/postgres'}},
                         {'type': 'postgresql_cluster',
                          'id': 'pg-malm[aws:12345678:eu-central-1]',
+                         'created_by': 'agent',
                          'region': conftest.REGION,
                          'spilo_cluster': 'malm',
                          'elastic_ip': '22.33.44.55',
