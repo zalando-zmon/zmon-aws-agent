@@ -231,6 +231,7 @@ def get_postgresql_clusters(region, infrastructure_account, asgs, insts):
 
         entities.append({'type': 'postgresql_cluster',
                          'id': entity_id('pg-{}[{}:{}]'.format(cluster_name, infrastructure_account, region)),
+                         'created_by': 'agent',
                          'region': region,
                          'spilo_cluster': cluster_name,
                          'elastic_ip': public_ip,
