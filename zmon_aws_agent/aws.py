@@ -740,6 +740,7 @@ def get_certificates(region, acc, **kwargs):
                 'status': c['Status'],
                 'expiration': c['NotAfter'].isoformat() if 'NotAfter' in c else '',
                 'in_use': "true" if len(c['InUseBy']) > 0 else "false",
+                'validation': c.get('DomainValidationOptions', {}).get('ValidationMethod', 'UNKNOWN')
             }
 
             entities.append(e)
