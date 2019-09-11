@@ -262,12 +262,13 @@ def main():
             rds + postgresql_databases + postgresql_clusters + elasticaches + dynamodbs +
             certificates + sqs)
         current_entities.append(aws_limits)
-        current_entities.append(ia_entity)
 
+        # add the alias for all accounts except the local type entity
         for entity in current_entities:
             entity.update(entity_extras)
             entity.update({'alias': owner})
 
+        current_entities.append(ia_entity)
         # 4. Removing misssing entities
         existing_ids = get_existing_ids(entities)
         current_entities_ids = {e['id'] for e in current_entities}
