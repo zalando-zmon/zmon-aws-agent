@@ -435,7 +435,10 @@ def get_certificates():
                 'CertificateArn': 'arn-acm-zmon-cert-2/2-123',
                 'Status': 'ISSUED',
                 'NotAfter': datetime(2023, 4, 26, 0, 0),
-                'InUseBy': ['abc', 'def']
+                'InUseBy': ['abc', 'def'],
+                'DomainValidationOptions': {
+                    'ValidationMethod': 'EMAIL'
+                }
             }
         },
         {
@@ -443,7 +446,10 @@ def get_certificates():
                 'DomainName': 'zmon-cert-3',
                 'CertificateArn': 'arn-acm-zmon-cert-3/3-123',
                 'Status': 'VALIDATION_TIMED_OUT',
-                'InUseBy': ['abc', 'def']
+                'InUseBy': ['abc', 'def'],
+                'DomainValidationOptions': {
+                    'ValidationMethod': 'EMAIL'
+                }
             }
         },
         {
@@ -452,7 +458,10 @@ def get_certificates():
                 'CertificateArn': 'arn-acm-zmon-cert-4/4-123',
                 'Status': 'ISSUED',
                 'NotAfter': datetime(2023, 4, 26, 0, 0),
-                'InUseBy': []
+                'InUseBy': [],
+                'DomainValidationOptions': {
+                    'ValidationMethod': 'DNS'
+                }
             }
         },
     ]
@@ -469,18 +478,21 @@ def get_certificates():
             'certificate_type': 'acm', 'id': 'cert-acm-2-123-zmon-cert-2[{}:{}]'.format(ACCOUNT, REGION),
             'infrastructure_account': ACCOUNT, 'expiration': '2023-04-26T00:00:00',
             'created_by': 'agent', 'name': 'zmon-cert-2', 'in_use': 'true',
+            'validation': 'EMAIL',
         },
         {
             'type': 'certificate', 'status': 'VALIDATION_TIMED_OUT', 'region': REGION,
             'arn': 'arn-acm-zmon-cert-3/3-123', 'certificate_type': 'acm',
             'id': 'cert-acm-3-123-zmon-cert-3[{}:{}]'.format(ACCOUNT, REGION), 'infrastructure_account': ACCOUNT,
             'expiration': '', 'created_by': 'agent', 'name': 'zmon-cert-3', 'in_use': 'true',
+            'validation': 'EMAIL',
         },
         {
             'type': 'certificate', 'status': 'ISSUED', 'region': REGION, 'arn': 'arn-acm-zmon-cert-4/4-123',
             'certificate_type': 'acm', 'id': 'cert-acm-4-123-zmon-cert-4[{}:{}]'.format(ACCOUNT, REGION),
             'infrastructure_account': ACCOUNT, 'expiration': '2023-04-26T00:00:00',
             'created_by': 'agent', 'name': 'zmon-cert-4', 'in_use': 'false',
+            'validation': 'DNS',
         }
     ]
 
