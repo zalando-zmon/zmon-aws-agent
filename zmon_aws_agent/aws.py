@@ -91,8 +91,8 @@ def populate_dns_data():
 
         DNS_RR_CACHE_ZONE[zone['Name']] = [
             r for r in records if (
-                ('SetIdentifier' in r and 'Weight' in r) and
-                (r['Type'] == 'CNAME' or r.get('AliasTarget', {}).get('DNSName'))
+                    ('SetIdentifier' in r and 'Weight' in r) and
+                    (r['Type'] == 'CNAME' or r.get('AliasTarget', {}).get('DNSName'))
             )
         ]
 
@@ -740,7 +740,8 @@ def get_certificates(region, acc, **kwargs):
                 'status': c['Status'],
                 'expiration': c['NotAfter'].isoformat() if 'NotAfter' in c else '',
                 'in_use': "true" if len(c['InUseBy']) > 0 else "false",
-                'validation': c.get('DomainValidationOptions', {}).get('ValidationMethod', 'UNKNOWN')
+                'validation_method': validation_method(c),
+                'validation_status': validation_status(c)
             }
 
             entities.append(e)
@@ -751,6 +752,26 @@ def get_certificates(region, acc, **kwargs):
         logger.exception('Failed while retrieving IAM/ACM certificates, IAM role has no access?')
 
     return entities
+
+
+def validation_method(certificate):
+    options = certificate.get('DomainValidationOptions', [])
+    methods = set([o.get('ValidationMethod', 'UNKNOWN') for o in options])
+    if len(methods) == 1:
+        return methods.pop()
+    return "MULTIPLE"
+
+
+def validation_status(certificate):
+    options = certificate.get('DomainValidationOptions', [])
+    statuses = [o.get('ValidationStatus', '') for o in options]
+    if all([s == 'SUCCESS' for s in statuses]):
+        return 'SUCCESS'
+    if 'FAILED' in statuses:
+        return 'FAILED'
+    if 'PENDING_VALIDATION' in statuses:
+        return 'PENDING_VALIDATION'
+    return 'UNKNOWN'
 
 
 @trace(tags={'aws': 'iam'}, pass_span=True)
