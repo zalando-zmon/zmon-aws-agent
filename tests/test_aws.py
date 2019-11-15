@@ -7,7 +7,7 @@ import zmon_aws_agent.aws as aws
 from conftest import ThrottleError
 from conftest import ACCOUNT, REGION
 from conftest import get_elc_cluster, get_autoscaling, get_elbs, get_elbs_application, get_apps, get_certificates, \
-    get_sqs_queues, get_apps_existing
+    get_ec2_service_quotas, get_sqs_queues, get_apps_existing
 
 from botocore.exceptions import ClientError
 
@@ -563,6 +563,28 @@ def test_aws_get_limits(monkeypatch, fail):
         call('iam', region_name=REGION),
     ]
     boto.assert_has_calls(calls)
+
+
+def test_aws_get_service_quotas(monkeypatch):
+    quotas, existing, result = get_ec2_service_quotas()
+
+    quotas_client = MagicMock()
+    quotas_client.get_paginator.return_value.paginate.return_value.build_full_result.return_value = quotas
+    get_boto_client(monkeypatch, quotas_client)
+
+    res = aws.get_service_quotas(REGION, ACCOUNT, existing)
+    assert res == result
+
+
+def test_aws_get_service_quotas_fail(monkeypatch):
+    _, existing, result = get_ec2_service_quotas()
+
+    quotas_client = MagicMock()
+    quotas_client.get_paginator.return_value.paginate.return_value.build_full_result.side_effect = Exception()
+    get_boto_client(monkeypatch, quotas_client)
+
+    res = aws.get_service_quotas(REGION, ACCOUNT, existing)
+    assert res == existing
 
 
 def test_aws_get_sqs_queues(monkeypatch):

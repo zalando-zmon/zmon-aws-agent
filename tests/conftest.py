@@ -589,6 +589,95 @@ def fx_dynamodb(request):
     return request.param
 
 
+def get_ec2_service_quotas():
+    quotas = {
+        'Quotas': [
+            {
+                "ServiceCode": "ec2",
+                "ServiceName": "Amazon Elastic Compute Cloud (Amazon EC2)",
+                "QuotaArn": "arn:aws:servicequotas:eu-west-1:170858875137:ec2/L-7295265B",
+                "QuotaCode": "L-7295265B",
+                "QuotaName": "Running On-Demand X instances",
+                "Value": 548.0,
+                "Unit": "None",
+                "Adjustable": True,
+                "GlobalQuota": False,
+                "UsageMetric": {
+                    "MetricNamespace": "AWS/Usage",
+                    "MetricName": "ResourceCount",
+                    "MetricDimensions": {
+                        "Class": "X/OnDemand",
+                        "Resource": "vCPU",
+                        "Service": "EC2",
+                        "Type": "Resource"
+                    },
+                    "MetricStatisticRecommendation": "Maximum"
+                }
+            },
+            {
+                "ServiceCode": "ec2",
+                "ServiceName": "Amazon Elastic Compute Cloud (Amazon EC2)",
+                "QuotaArn": "arn:aws:servicequotas:eu-west-1:170858875137:ec2/L-E4BF28E0",
+                "QuotaCode": "L-E4BF28E0",
+                "QuotaName": "Running On-Demand c4 hosts",
+                "Value": 2.0,
+                "Unit": "None",
+                "Adjustable": True,
+                "GlobalQuota": False
+            }
+        ]
+    }
+
+    existing = [
+        {
+            "arn": "arn:aws:servicequotas:eu-west-1:170858875137:ec2/L-FOOBAR",
+            "code": "L-FOOBAR",
+            "created_by": "agent",
+            "id": "aws_servicequota-ec2-l-foobar[aws:1234:eu-central-1]",
+            "infrastructure_account": "aws:1234",
+            "region": "eu-central-1",
+            "service": "ec2",
+            "type": "aws_servicequota",
+            "value": 111
+        }
+    ]
+
+    result = [
+        {
+            "arn": "arn:aws:servicequotas:eu-west-1:170858875137:ec2/L-7295265B",
+            "code": "L-7295265B",
+            "created_by": "agent",
+            "id": "aws_servicequota-ec2-l-7295265b[aws:1234:eu-central-1]",
+            "infrastructure_account": "aws:1234",
+            "region": "eu-central-1",
+            "service": "ec2",
+            "type": "aws_servicequota",
+            "usage_metric": {"dimensions": {"Class": "X/OnDemand",
+                                            "Resource": "vCPU",
+                                            "Service": "EC2",
+                                            "Type": "Resource"},
+                             "name": "ResourceCount",
+                             "namespace": "AWS/Usage",
+                             "statistic_recommendation": "Maximum"},
+            "value": 548.0
+        },
+        {
+            "arn": "arn:aws:servicequotas:eu-west-1:170858875137:ec2/L-E4BF28E0",
+            "code": "L-E4BF28E0",
+            "created_by": "agent",
+            "id": "aws_servicequota-ec2-l-e4bf28e0[aws:1234:eu-central-1]",
+            "infrastructure_account": "aws:1234",
+            "region": "eu-central-1",
+            "service": "ec2",
+            "type": "aws_servicequota",
+            "usage_metric": None,
+            "value": 2.0
+        },
+    ]
+
+    return quotas, existing, result
+
+
 def get_sqs_queues():
     url1 = 'https://{}.queue.amazonaws.com/123412341234/queue1'.format(REGION)
     url2 = 'https://{}.queue.amazonaws.com/123412341234/queue2'.format(REGION)

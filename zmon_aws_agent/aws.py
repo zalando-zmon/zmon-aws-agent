@@ -883,7 +883,6 @@ def get_limits(region, acc, apps, elbs, entities, **kwargs):
 
         limits['iam-used-policies'] = iam_limits['Policies']
         limits['iam-max-policies'] = iam_limits['PoliciesQuota']
-
     except Exception:
         current_span.set_tag('error', True)
         current_span.log_kv({'exception': traceback.format_exc()})
@@ -900,6 +899,56 @@ def get_limits(region, acc, apps, elbs, entities, **kwargs):
     entity.update(limits)
 
     return entity
+
+
+def convert_usage_metric(src):
+    if src is None:
+        return None
+    return {
+        'namespace': src['MetricNamespace'],
+        'name': src['MetricName'],
+        'dimensions': src['MetricDimensions'],
+        'statistic_recommendation': src['MetricStatisticRecommendation'],
+    }
+
+
+@trace(tags={'aws': 'servicequotas'}, pass_span=True)
+def get_service_quotas(region, acc, existing_entities, **kwargs):
+    quotas = boto3.client('service-quotas', region_name=region)
+
+    try:
+        result = []
+
+        for service in ["ec2"]:
+            def fetch():
+                paginator = quotas.get_paginator('list_service_quotas')
+                return paginator.paginate(ServiceCode=service,
+                                          PaginationConfig={'MaxItems': MAX_PAGE}).build_full_result()
+
+            quotas = call_and_retry(fetch)
+            for quota in quotas['Quotas']:
+                quota_id = 'aws_servicequota-{}-{}[{}:{}]'.format(service, quota['QuotaCode'].lower(), acc, region)
+                entity = {
+                    'id': entity_id(quota_id),
+                    'region': region,
+                    'created_by': 'agent',
+                    'infrastructure_account': '{}'.format(acc),
+                    'type': 'aws_servicequota',
+                    'service': quota['ServiceCode'],
+                    'code': quota['QuotaCode'],
+                    'arn': quota['QuotaArn'],
+                    'value': quota['Value'],
+                    'usage_metric': convert_usage_metric(quota.get('UsageMetric')),
+                }
+                result.append(entity)
+
+        return result
+    except Exception:
+        current_span = extract_span_from_kwargs(**kwargs)
+        current_span.set_tag('error', True)
+        current_span.log_kv({'exception': traceback.format_exc()})
+        logger.exception('Failed to retrieve service quotas')
+        return [e for e in existing_entities if e['type'] == 'aws_servicequota']
 
 
 @trace(tags={'aws': 'sqs'}, pass_span=True)

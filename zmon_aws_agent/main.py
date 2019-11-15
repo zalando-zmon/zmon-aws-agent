@@ -207,6 +207,7 @@ def main():
         rds = []
         elasticaches = []
         dynamodbs = []
+        service_quotas = []
         sqs = []
         postgresql_clusters = []
         aws_limits = []
@@ -223,6 +224,7 @@ def main():
             dynamodbs = aws.get_dynamodb_tables(region, infrastructure_account)
             certificates = aws.get_certificates(region, infrastructure_account)
             aws_limits = aws.get_limits(region, infrastructure_account, apps, elbs, entities)
+            service_quotas = aws.get_service_quotas(region, infrastructure_account, entities)
             sqs = aws.get_sqs_queues(region, infrastructure_account, entities)
             postgresql_clusters = postgresql.get_postgresql_clusters(region, infrastructure_account,
                                                                      scaling_groups, apps)
@@ -260,7 +262,7 @@ def main():
         current_entities = (
             elbs + scaling_groups + elastigroups + apps + application_entities +
             rds + postgresql_databases + postgresql_clusters + elasticaches + dynamodbs +
-            certificates + sqs)
+            certificates + service_quotas + sqs)
         current_entities.append(aws_limits)
 
         # add the alias for all accounts except the local type entity
