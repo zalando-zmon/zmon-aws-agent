@@ -632,6 +632,7 @@ def get_ec2_service_quotas():
         {
             "arn": "arn:aws:servicequotas:eu-west-1:170858875137:ec2/L-FOOBAR",
             "code": "L-FOOBAR",
+            "name": "Example",
             "created_by": "agent",
             "id": "aws_servicequota-ec2-l-foobar[aws:1234:eu-central-1]",
             "infrastructure_account": "aws:1234",
@@ -646,6 +647,7 @@ def get_ec2_service_quotas():
         {
             "arn": "arn:aws:servicequotas:eu-west-1:170858875137:ec2/L-7295265B",
             "code": "L-7295265B",
+            "name": "Running On-Demand X instances",
             "created_by": "agent",
             "id": "aws_servicequota-ec2-l-7295265b[aws:1234:eu-central-1]",
             "infrastructure_account": "aws:1234",
@@ -664,6 +666,7 @@ def get_ec2_service_quotas():
         {
             "arn": "arn:aws:servicequotas:eu-west-1:170858875137:ec2/L-E4BF28E0",
             "code": "L-E4BF28E0",
+            "name": "Running On-Demand c4 hosts",
             "created_by": "agent",
             "id": "aws_servicequota-ec2-l-e4bf28e0[aws:1234:eu-central-1]",
             "infrastructure_account": "aws:1234",

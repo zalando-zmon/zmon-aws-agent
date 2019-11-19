@@ -936,6 +936,7 @@ def get_service_quotas(region, acc, existing_entities, **kwargs):
                     'type': 'aws_servicequota',
                     'service': quota['ServiceCode'],
                     'code': quota['QuotaCode'],
+                    'name': quota['QuotaName'],
                     'arn': quota['QuotaArn'],
                     'value': quota['Value'],
                     'usage_metric': convert_usage_metric(quota.get('UsageMetric')),
