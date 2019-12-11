@@ -231,6 +231,7 @@ def get_running_apps(region, existing_entities=None, **kwargs):
                     'instance_type': i['InstanceType'],
                     'spot_instance': is_spot_instance,
                     'aws_id': i['InstanceId'],
+                    'availability_zone': i['Placement']['AvailabilityZone'],
                     'infrastructure_account': 'aws:{}'.format(owner),
                 }
 
