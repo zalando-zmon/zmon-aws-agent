@@ -292,7 +292,8 @@ def get_running_apps(region, existing_entities=None, **kwargs):
                         ins['fluentd_enabled'] = 'true'
 
                 else:
-                    ins['id'] = entity_id('{}-{}[aws:{}:{}]'.format(tags.get('Name') or i['InstanceId'],
+                    name = tags.get('Name') or i['InstanceId']
+                    ins['id'] = entity_id('{}-{}[aws:{}:{}]'.format(name.lower(),
                                                                     get_hash(i['PrivateIpAddress'] + ''),
                                                                     owner, region))
 
