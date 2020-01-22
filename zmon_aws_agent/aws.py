@@ -675,6 +675,7 @@ def get_rds_instances(region, acc, existing_entities, **kwargs):
                 'instance_type': i.get('DBInstanceClass', ''),
                 'storage_type': i.get('StorageType', ''),
                 'storage_size': i.get('AllocatedStorage', ''),
+                'ca_certificate_identifier': i.get('CACertificateIdentifier', ''),
             }
 
             if 'EngineVersion' in i:

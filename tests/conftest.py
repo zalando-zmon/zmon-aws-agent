@@ -543,12 +543,13 @@ def get_certificates():
             'DBInstances': [
                 {
                     'DBInstanceIdentifier': 'db-1', 'Engine': 'e-1', 'Endpoint': {'Port': 5432, 'Address': '0.0.0.0'},
-                    'DBInstanceClass': 'm4.xlarge', 'StorageType': 'gp2', 'AllocatedStorage': 100
+                    'DBInstanceClass': 'm4.xlarge', 'StorageType': 'gp2', 'AllocatedStorage': 100,
+                    'CACertificateIdentifier': 'rds-ca-2015'
                 },
                 {
                     'DBInstanceIdentifier': 'db-2', 'Engine': 'e-1', 'Endpoint': {'Port': 5432, 'Address': '0.0.0.0'},
                     'EngineVersion': '1.0.2', 'DBName': 'db-2-name', 'DBInstanceClass': 'm4.xlarge',
-                    'AllocatedStorage': 500
+                    'AllocatedStorage': 500, 'CACertificateIdentifier': 'rds-ca-2019'
                 },
             ]
         },
@@ -556,12 +557,13 @@ def get_certificates():
             {
                 'id': 'rds-db-1[{}]', 'name': 'db-1', 'engine': 'e-1', 'port': 5432, 'host': '0.0.0.0',
                 'type': 'database', 'shards': {'db-1': '0.0.0.0:5432/db-1'}, 'instance_type': 'm4.xlarge',
-                'storage_type': 'gp2', 'storage_size': 100
+                'storage_type': 'gp2', 'storage_size': 100, 'ca_certificate_identifier': 'rds-ca-2015'
             },
             {
                 'id': 'rds-db-2[{}]', 'name': 'db-2', 'engine': 'e-1', 'port': 5432, 'host': '0.0.0.0',
                 'type': 'database', 'version': '1.0.2', 'shards': {'db-2-name': '0.0.0.0:5432/db-2-name'},
-                'instance_type': 'm4.xlarge', 'storage_type': '', 'storage_size': 500
+                'instance_type': 'm4.xlarge', 'storage_type': '', 'storage_size': 500,
+                'ca_certificate_identifier': 'rds-ca-2019'
             },
         ]
     ),
